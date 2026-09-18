@@ -1,0 +1,12 @@
+'use client';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis, Pie, PieChart, Cell } from 'recharts';
+import { Analytics } from '@/types';
+const colors = ['#cbd5e1', '#eab308', '#10b981', '#94a3b8'];
+export function Charts({ data, full = false }: { data: Analytics; full?: boolean }) {
+  return <div className="chart-grid">
+    <section className="panel"><div className="panel-heading"><div><h2>Planned vs. completed</h2><p>Academic activities by department</p></div></div><div className="chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.departments}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><Tooltip /><Legend /><Bar dataKey="planned" name="Planned" fill="#dbeafe" radius={[4,4,0,0]} /><Bar dataKey="completed" name="Completed" fill="#2563eb" radius={[4,4,0,0]} /></BarChart></ResponsiveContainer></div></section>
+    <section className="panel"><div className="panel-heading"><div><h2>Activity status</h2><p>Live plan execution distribution</p></div></div><div className="chart"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={data.status_distribution} dataKey="value" nameKey="name" innerRadius={65} outerRadius={95} paddingAngle={3}>{data.status_distribution.map((item, i) => <Cell key={item.name} fill={colors[i]} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer></div></section>
+    {full && <><section className="panel"><div className="panel-heading"><h2>Course progress (%)</h2></div><div className="chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.courses} layout="vertical" margin={{ left: 45, right: 20 }}><XAxis type="number" domain={[0,100]} /><YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="progress" fill="#10b981" radius={[0,4,4,0]} /></BarChart></ResponsiveContainer></div></section>
+    <section className="panel"><div className="panel-heading"><h2>Observed schedule variance (days)</h2></div>{data.schedule_variance.some(x => x.variance_days !== null) ? <div className="chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.schedule_variance.filter(x => x.variance_days !== null).slice(0,12)}><XAxis dataKey="name" hide /><YAxis /><Tooltip /><Bar dataKey="variance_days" fill="#f59e0b" /></BarChart></ResponsiveContainer></div> : <p className="empty">No completed activities with actual dates yet. Variance is not estimated.</p>}</section></>}
+  </div>;
+}

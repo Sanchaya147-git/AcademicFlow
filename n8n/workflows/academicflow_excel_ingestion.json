@@ -1,0 +1,293 @@
+{
+  "name": "AcademicFlow excel ingestion",
+  "nodes": [
+    {
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "academicflow/excel",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "academicflow-excel"
+    },
+    {
+      "id": "ingest-report",
+      "name": "Ingest Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FASTAPI_BASE_URL + '/api/reports/spreadsheet' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Webhook').first().json.headers.authorization }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "file"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extract-events",
+      "name": "Extract Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FASTAPI_BASE_URL + '/api/extraction/' + $json.report_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Webhook').first().json.headers.authorization }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "has-events",
+      "name": "Has Events",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "nonempty",
+              "leftValue": "={{ $json.body.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "each-event",
+      "name": "Each Event",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "body",
+        "options": {
+          "destinationFieldName": "event"
+        }
+      }
+    },
+    {
+      "id": "match-event",
+      "name": "Match Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FASTAPI_BASE_URL + '/api/matching/' + $json.event.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Webhook').first().json.headers.authorization }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "route-backend-decisions",
+      "name": "Route Backend Decisions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const report = $('Ingest Report').first().json;\nconst routes = { AUTO_LINK: [], HUMAN_REVIEW: [], UNMATCHED: [] };\nfor (const item of $input.all()) {\n  const result = item.json;\n  // A successful extraction may legitimately produce no events.\n  if (Array.isArray(result.body) && result.body.length === 0) continue;\n  if (!result.event_id || !Object.hasOwn(routes, result.decision)) {\n    throw new Error('Unexpected matching response; no decision was fabricated');\n  }\n  routes[result.decision].push(result);\n}\nreturn [{ json: {\n  report_id: report.report_id,\n  ingestion: report,\n  matched_events: Object.values(routes).reduce((n, items) => n + items.length, 0),\n  routes,\n  note: 'FastAPI owns linking, schedule synchronization and audit. Review remains pending.'\n} }];"
+      }
+    },
+    {
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Ingest Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest Report": {
+      "main": [
+        [
+          {
+            "node": "Extract Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Events": {
+      "main": [
+        [
+          {
+            "node": "Has Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Each Event": {
+      "main": [
+        [
+          {
+            "node": "Match Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Event": {
+      "main": [
+        [
+          {
+            "node": "Route Backend Decisions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Backend Decisions": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Events": {
+      "main": [
+        [
+          {
+            "node": "Each Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Backend Decisions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "pinData": {},
+  "tags": []
+}

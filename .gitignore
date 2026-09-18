@@ -38,3 +38,20 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# Local secrets, uploads, and generated validation artifacts
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.tsbuildinfo
+data/uploads/*
+!data/uploads/.gitkeep
+*.db
+*.db-shm
+*.db-wal
+frontend/test-results/
+frontend/playwright-report/
+backend/.ruff_cache/
