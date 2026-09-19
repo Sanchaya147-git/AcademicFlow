@@ -105,3 +105,8 @@ own validation, including browser tests, production build and PostgreSQL concurr
 - Verified live POST `/api/auth/login` and authenticated GET `/api/auth/me`: both
   HTTP 200. This confirms the existing local PostgreSQL/auth path, not full n8n E2E.
 - The database resides under `/tmp`; do not treat it as durable production storage.
+
+## Local login account update — sanchaya123
+- Restarted the local PostgreSQL cluster at `/tmp/academicflow-pgdata` on `127.0.0.1:5439` with the existing custom extension path.
+- Added local FACULTY/CSE login `sanchaya123` using the existing scrypt password hashing and recorded an audit row in the same transaction. No password/token was added to project files.
+- Verified live POST `/api/auth/login` and authenticated GET `/api/auth/me`: both returned HTTP 200 for this account.
