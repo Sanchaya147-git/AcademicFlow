@@ -55,3 +55,7 @@ data/uploads/*
 frontend/test-results/
 frontend/playwright-report/
 backend/.ruff_cache/
+*.exe
+backend/scripts/*
+!backend/scripts/run_server.sh
+!backend/scripts/seed_demo_users.py

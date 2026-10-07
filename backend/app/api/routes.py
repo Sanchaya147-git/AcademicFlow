@@ -325,19 +325,19 @@ def accessible_match(db, user, match_id):
 
 @router.post("/review/{match_id}/approve", response_model=EventOut)
 def approve(match_id: UUID, body: ReviewAction, db: Session = Db, user: User = Auth):
-    require(user, "COORDINATOR", "ADMIN")
+    require(user, "HOD", "COORDINATOR", "ADMIN")
     return review.resolve(db, accessible_match(db, user, match_id), user, body.reason, True)
 
 
 @router.post("/review/{match_id}/reject", response_model=EventOut)
 def reject(match_id: UUID, body: ReviewAction, db: Session = Db, user: User = Auth):
-    require(user, "COORDINATOR", "ADMIN")
+    require(user, "HOD", "COORDINATOR", "ADMIN")
     return review.resolve(db, accessible_match(db, user, match_id), user, body.reason, False)
 
 
 @router.post("/review/{event_id}/manual-map", response_model=EventOut)
 def map_event(event_id: UUID, body: ManualMap, db: Session = Db, user: User = Auth):
-    require(user, "COORDINATOR", "ADMIN")
+    require(user, "HOD", "COORDINATOR", "ADMIN")
     return review.manual_map(
         db, accessible_event(db, user, event_id), accessible_activity(db, user, body.activity_id), user, body.reason
     )
@@ -345,7 +345,7 @@ def map_event(event_id: UUID, body: ManualMap, db: Session = Db, user: User = Au
 
 @router.post("/review/{event_id}/classify", response_model=EventOut)
 def classify(event_id: UUID, body: Classification, db: Session = Db, user: User = Auth):
-    require(user, "COORDINATOR", "ADMIN")
+    require(user, "HOD", "COORDINATOR", "ADMIN")
     event = review.lock_event(db, accessible_event(db, user, event_id).id)
     if event.disposition not in {"UNMATCHED", "EXTRA_ACTIVITY", "OUTSIDE_ACADEMIC_SCOPE", "REJECTED"}:
         raise HTTPException(409, "Only unmatched events can be classified")

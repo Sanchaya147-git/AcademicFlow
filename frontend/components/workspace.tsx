@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { Activity as Pulse, ArrowRight, BookOpen, CheckCircle2, ClipboardList, Clock3, FileText, GraduationCap, LayoutDashboard, LogOut, RefreshCw, SearchCheck, ShieldCheck, Upload, BarChart3, CalendarDays, CircleHelp, Bell } from 'lucide-react';
+import { Activity as Pulse, ArrowRight, BookOpen, CheckCircle2, ClipboardList, Clock3, FileText, GraduationCap, LayoutDashboard, LogOut, RefreshCw, SearchCheck, ShieldCheck, Upload, BarChart3, CalendarDays, CircleHelp, Bell, PhoneCall } from 'lucide-react';
 import { api, post } from '@/lib/api';
 import { Activity, Analytics, Audit, Candidate, Event as ExecutionEvent, Report, ReviewItem, User } from '@/types';
 import { ActivityTable } from './activity-table';
@@ -49,6 +49,86 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
   const [classSection, setClassSection] = useState('');
   const [planDate, setPlanDate] = useState('');
   const [pipeline, setPipeline] = useState<{ event_id: string; decision: string; candidates: Candidate[] }[]>([]);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [simMode, setSimMode] = useState<'simulate' | 'phone'>('simulate');
+  const [callPhone, setCallPhone] = useState('+916380221196');
+  const [simLoading, setSimLoading] = useState(false);
+  const [callLoading, setCallLoading] = useState(false);
+  const [callResult, setCallResult] = useState<{ status: string; call_sid?: string; to?: string } | null>(null);
+
+  const [chatSessionId, setChatSessionId] = useState('sim_' + Math.random().toString(36).substring(2, 9));
+  const [chatHistory, setChatHistory] = useState<Array<{ sender: 'ai' | 'user'; text: string; tamil?: string }>>([
+    {
+      sender: 'ai',
+      text: 'Welcome Professor! Please tell what you covered in class today in English, Tamil, or Tanglish.',
+      tamil: 'வணக்கம் புரொபசர். அகாடமிக் ஃப்ளோவிற்கு வரவேற்கிறோம். இன்று வகுப்பில் என்ன நடத்தினீர்கள் என்று கூறுங்கள்.',
+    }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatComplete, setChatComplete] = useState(false);
+  const [chatMatchResult, setChatMatchResult] = useState<any>(null);
+
+  function startNewConversation() {
+    setChatSessionId('sim_' + Math.random().toString(36).substring(2, 9));
+    setChatHistory([
+      {
+        sender: 'ai',
+        text: 'Welcome Professor! Please tell what you covered in class today in English, Tamil, or Tanglish.',
+        tamil: 'வணக்கம் புரொபசர். அகாடமிக் ஃப்ளோவிற்கு வரவேற்கிறோம். இன்று வகுப்பில் என்ன நடத்தினீர்கள் என்று கூறுங்கள்.',
+      }
+    ]);
+    setChatComplete(false);
+    setChatMatchResult(null);
+    setChatInput('');
+  }
+
+  async function sendChatTurn(customText?: string) {
+    const text = (customText || chatInput).trim();
+    if (!text || simLoading) return;
+    setSimLoading(true); setError('');
+    const newHistory = [...chatHistory, { sender: 'user' as const, text }];
+    setChatHistory(newHistory);
+    setChatInput('');
+    try {
+      const res = await post<any>('/webhook/voice/chat', { session_id: chatSessionId, speech_text: text });
+      setChatHistory([
+        ...newHistory,
+        {
+          sender: 'ai',
+          text: res.speech_reply_english,
+          tamil: res.speech_reply_tamil,
+        }
+      ]);
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(res.speech_reply_english);
+        window.speechSynthesis.speak(utterance);
+      }
+      if (res.is_complete) {
+        setChatComplete(true);
+        setChatMatchResult(res.match_result);
+        setNotice('Conversation complete! Grounded in syllabus and synchronized to Master Plan.');
+        await refresh();
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSimLoading(false);
+    }
+  }
+
+  async function handleTriggerPhoneCall() {
+    setCallLoading(true); setError(''); setCallResult(null);
+    try {
+      const res = await post<any>(`/webhook/voice/call?to_phone=${encodeURIComponent(callPhone)}`);
+      setCallResult(res);
+      setNotice(`Calling ${callPhone} via Twilio! Answer phone to speak.`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setCallLoading(false);
+    }
+  }
 
   useEffect(() => {
     api<User>('/auth/me').then(setUser).catch(e => { if (!String(e.message).startsWith('401')) setError(e.message); }).finally(() => setBooting(false));
@@ -133,7 +213,7 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
       setResolution(null); setNotice('Decision recorded. Schedule and audit history are synchronized.'); await refresh();
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
-  const reviewer = user && ['ADMIN', 'COORDINATOR'].includes(user.role);
+  const reviewer = user && ['ADMIN', 'COORDINATOR', 'HOD'].includes(user.role);
   const submitter = user && user.role !== 'HOD';
   const filtered = activities.filter(a => (!department || a.department === department) && (!course || a.course === course) && (!status || a.status === status) && (!classSection || a.class_section === classSection) && (!planDate || (a.planned_start <= planDate && a.planned_end >= planDate)));
 
@@ -142,7 +222,7 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
 
   return <div className="workspace"><aside className="sidebar"><Link href="/dashboard" className="brand"><div className="brand-mark"><GraduationCap size={23} /></div><div>AcademicFlow<small>EXECUTION INTELLIGENCE</small></div></Link><div className="institution"><span className="institution-icon">AF</span><div>Academic workspace<small>{user.department || 'Institution-wide access'}</small></div></div><p className="nav-label">WORKSPACE</p><nav>{links.filter(([key]) => !['review','unmatched'].includes(key) || ['ADMIN','COORDINATOR','HOD'].includes(user.role)).map(([key, label, Icon]) => <Link key={key} href={`/${key}`} className={section === key ? 'active' : ''}><Icon size={18} />{label}{key === 'review' && analytics?.summary.needs_review ? <span className="nav-count">{analytics.summary.needs_review}</span> : null}</Link>)}</nav><div className="trust-card"><ShieldCheck size={20} /><strong>Human judgment matters</strong><p>AI-assisted — review when uncertain. Every decision retains its evidence.</p></div><div className="sidebar-footer"><span className="status-dot" /> Local MVP · {provider === 'demo' ? 'Offline demo provider' : 'OpenAI provider'}</div></aside>
     <div className="main-shell"><header className="topbar"><span>Workspace <span className="muted">/ {activityId ? 'Activity detail' : titles[section]?.[0]}</span></span><div className="header-right"><span className="role-pill">{user.role.replaceAll('_',' ')}</span><Bell size={17} aria-label="Notifications appear in the status area" /><span className="avatar">{user.name.slice(0,2).toUpperCase()}</span><button className="icon-button" aria-label="Sign out" onClick={async () => { try { await post('/auth/logout'); setUser(null); setAnalytics(null); setReports([]); setQueue([]); setAudit([]); setActivities([]); setDetail(null); setNotice(''); setPipeline([]); } catch(e) { setError((e as Error).message); } }}><LogOut size={17} /></button></div></header>
-    <main className="content"><div className="page-heading"><div><div className="eyebrow">ACADEMIC INTELLIGENCE</div><h1>{activityId ? detail?.activity.activity_name || 'Activity details' : titles[section]?.[0]}</h1><p>{activityId ? 'Plan, execution evidence, and decision history in one place.' : titles[section]?.[1]}</p></div><div className="heading-actions"><button className="secondary" onClick={refresh} disabled={loading || busy}><RefreshCw size={15} /> Refresh</button>{section === 'dashboard' && submitter && <Link className="primary" href="/reports"><Upload size={16} /> Submit report</Link>}</div></div>
+    <main className="content"><div className="page-heading"><div><div className="eyebrow">ACADEMIC INTELLIGENCE</div><h1>{activityId ? detail?.activity.activity_name || 'Activity details' : titles[section]?.[0]}</h1><p>{activityId ? 'Plan, execution evidence, and decision history in one place.' : titles[section]?.[1]}</p></div><div className="heading-actions"><button className="secondary" onClick={() => { setShowCallModal(true); startNewConversation(); setCallResult(null); }}><PhoneCall size={15} /> Simulate Call</button><button className="secondary" onClick={refresh} disabled={loading || busy}><RefreshCw size={15} /> Refresh</button>{section === 'dashboard' && submitter && <Link className="primary" href="/reports"><Upload size={16} /> Submit report</Link>}</div></div>
     {provider === 'demo' && <div className="demo-banner"><CircleHelp size={16} /> Offline demonstration mode: deterministic extraction and lexical vectors, not live semantic AI.</div>}
     {notice && <div className="notice" role="status"><CheckCircle2 size={17} /><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss notification">×</button></div>}
     {error && <div className="error" role="alert">{error} <button onClick={refresh}>Retry loading</button></div>}
@@ -169,6 +249,216 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
     <footer className="content-footer"><span>AcademicFlow · Execution intelligence, not faculty evaluation.</span><span><ShieldCheck size={14} /> Evidence preserved · Humans in control</span></footer>
     </main></div>
     {resolution && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="resolution-title"><h2 id="resolution-title">Confirm {resolution.kind === 'map' ? 'manual mapping' : resolution.classification?.replaceAll('_',' ').toLowerCase() || resolution.kind}</h2><p>This decision will be recorded with your identity and reason. Approving or mapping updates the official execution record.</p><form onSubmit={confirm}>{resolution.kind === 'map' && <><label>Search master activities<input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Activity, course, or class" /></label><label>Select activity<select required value={selection} onChange={e => setSelection(e.target.value)}><option value="">Choose an activity</option>{activities.filter(a => `${a.activity_name} ${a.course} ${a.class_section}`.toLowerCase().includes(search.toLowerCase())).map(a => <option key={a.id} value={a.id}>{a.activity_name} · {a.course} · {a.class_section}</option>)}</select></label></>}<label>Reason (required)<textarea autoFocus={resolution.kind !== 'map'} required minLength={3} maxLength={2000} value={reason} onChange={e => setReason(e.target.value)} rows={3} /></label>{error && <p role="alert" className="error">{error}</p>}<div className="actions"><button type="button" className="secondary" disabled={busy} onClick={() => setResolution(null)}>Cancel</button><button className="primary" disabled={busy || reason.trim().length < 3}>{busy ? 'Saving…' : 'Confirm decision'}</button></div></form></section></div>}
+    {showCallModal && (
+      <div className="modal-backdrop">
+        <section className="modal" style={{ maxWidth: 640 }} role="dialog" aria-modal="true">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <PhoneCall size={20} color="#2563eb" /> Faculty Voice Call Simulation
+            </h2>
+            <button className="icon-button" onClick={() => setShowCallModal(false)} style={{ fontSize: 18 }}>×</button>
+          </div>
+          <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 12 }}>
+            Test live multi-lingual voice updates (Tamil, Tanglish, English). Test directly in browser or trigger a real phone call to mobile.
+          </p>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <button
+              className={simMode === 'simulate' ? 'primary' : 'secondary'}
+              onClick={() => setSimMode('simulate')}
+              style={{ flex: 1, padding: '8px 12px', fontSize: 12 }}
+            >
+              🎙️ In-Browser Simulation
+            </button>
+            <button
+              className={simMode === 'phone' ? 'primary' : 'secondary'}
+              onClick={() => setSimMode('phone')}
+              style={{ flex: 1, padding: '8px 12px', fontSize: 12 }}
+            >
+              📞 Live Mobile Call (Twilio)
+            </button>
+          </div>
+
+          {simMode === 'simulate' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>
+                  Live Multi-Turn Voice Interview:
+                </span>
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ fontSize: 10, padding: '3px 8px' }}
+                  onClick={startNewConversation}
+                >
+                  🔄 Restart Call
+                </button>
+              </div>
+
+              {/* Chat turns display */}
+              <div style={{
+                maxHeight: 280,
+                overflowY: 'auto',
+                padding: 12,
+                background: '#f8fafc',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                marginBottom: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10
+              }}>
+                {chatHistory.map((m, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
+                      maxWidth: '85%',
+                      background: m.sender === 'user' ? '#2563eb' : '#ffffff',
+                      color: m.sender === 'user' ? '#ffffff' : '#1e293b',
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                      border: m.sender === 'user' ? 'none' : '1px solid #e2e8f0',
+                      fontSize: 12,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 10, marginBottom: 3, opacity: 0.8 }}>
+                      {m.sender === 'user' ? '👤 Faculty' : '🤖 AcademicFlow Voice Agent'}
+                    </div>
+                    <div>{m.text}</div>
+                    {m.tamil && (
+                      <div style={{ marginTop: 4, fontSize: 11, color: m.sender === 'user' ? '#dbeafe' : '#2563eb' }}>
+                        {m.tamil}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {simLoading && (
+                  <div style={{ alignSelf: 'flex-start', fontSize: 11, color: '#64748b', fontStyle: 'italic', padding: '6px 12px' }}>
+                    🤖 Claude is analyzing speech and formulating clarification…
+                  </div>
+                )}
+              </div>
+
+              {/* Quick test preset shortcuts */}
+              {!chatComplete && (
+                <div style={{ marginBottom: 12 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>
+                    Quick Responses (Click to test):
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    <button
+                      type="button"
+                      className="secondary"
+                      style={{ fontSize: 10, padding: '3px 7px' }}
+                      disabled={simLoading}
+                      onClick={() => sendChatTurn('Inaikku Linked List eduthen')}
+                    >
+                      1️⃣ "Inaikku Linked List eduthen" (Partial $\rightarrow$ Triggers Clarification)
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      style={{ fontSize: 10, padding: '3px 7px' }}
+                      disabled={simLoading}
+                      onClick={() => sendChatTurn('CSE-C ku singly linked list eduthen, fully completed.')}
+                    >
+                      2️⃣ "CSE-C ku singly linked list, completed" (Resolves Clarification)
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      style={{ fontSize: 10, padding: '3px 7px' }}
+                      disabled={simLoading}
+                      onClick={() => sendChatTurn('Completed SQL Joins in DBMS for CSE-C today')}
+                    >
+                      3️⃣ "Completed SQL Joins for CSE-C" (1-Turn Complete)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Input for user response */}
+              {!chatComplete ? (
+                <form
+                  onSubmit={e => { e.preventDefault(); sendChatTurn(); }}
+                  style={{ display: 'flex', gap: 8 }}
+                >
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    placeholder="Speak or type faculty update (Tamil, Tanglish or English)..."
+                    style={{ flex: 1, padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                    disabled={simLoading}
+                  />
+                  <button
+                    type="submit"
+                    className="primary"
+                    disabled={simLoading || !chatInput.trim()}
+                    style={{ fontSize: 12, padding: '0 16px' }}
+                  >
+                    {simLoading ? 'Thinking…' : 'Send'}
+                  </button>
+                </form>
+              ) : (
+                <div style={{ padding: 12, background: '#ecfdf5', borderRadius: 8, border: '1px solid #a7f3d0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <strong style={{ fontSize: 12, color: '#065f46' }}>✓ Interview Finalized & Grounded in Syllabus</strong>
+                    <span className="badge completed">{chatMatchResult?.decision || 'COMPLETED'}</span>
+                  </div>
+                  {chatMatchResult && (
+                    <div style={{ fontSize: 11, color: '#047857' }}>
+                      <p style={{ margin: '2px 0' }}><strong>Topic:</strong> {chatMatchResult.topic}</p>
+                      <p style={{ margin: '2px 0' }}><strong>Target Class:</strong> {chatMatchResult.department} - {chatMatchResult.section}</p>
+                      <p style={{ margin: '2px 0' }}><strong>Syllabus Match:</strong> {chatMatchResult.matched_activity || 'Matched to syllabus'} ({chatMatchResult.confidence}%)</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {simMode === 'phone' && (
+            <div>
+              <label style={{ display: 'block', marginBottom: 14 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>
+                  Faculty Mobile Number (with country code):
+                </span>
+                <input
+                  type="tel"
+                  value={callPhone}
+                  onChange={e => setCallPhone(e.target.value)}
+                  style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                  placeholder="+916380221196"
+                />
+              </label>
+              <button
+                className="primary"
+                disabled={callLoading || !callPhone.trim()}
+                onClick={handleTriggerPhoneCall}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {callLoading ? 'Initiating Call via Twilio…' : '📞 Call Phone Now'}
+              </button>
+              {callResult && (
+                <div style={{ marginTop: 14, padding: 12, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0', fontSize: 12, color: '#166534' }}>
+                  ✓ Outbound call queued to <strong>{callResult.to}</strong>! (SID: {callResult.call_sid?.slice(0, 10)}…)
+                  <p style={{ margin: '6px 0 0', fontSize: 11, color: '#15803d' }}>
+                    Pick up your phone to hear the Tamil & English greeting, speak your update, and check the dashboard review queue!
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <button className="secondary" onClick={() => setShowCallModal(false)}>Close</button>
+          </div>
+        </section>
+      </div>
+    )}
   </div>;
 }
 

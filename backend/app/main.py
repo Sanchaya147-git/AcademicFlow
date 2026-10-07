@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.api.routes import router
+from app.api.whatsapp import router as whatsapp_router
 from app.config import settings
 from app.extraction.extractor import ProviderError
 
@@ -22,10 +23,14 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 app.include_router(router)
+app.include_router(whatsapp_router)
 
 
 @app.middleware("http")
 async def request_log(request: Request, call_next):
+    raw_path = request.scope.get("path", "")
+    if raw_path.endswith("\\") or raw_path.endswith("%5C"):
+        request.scope["path"] = raw_path.rstrip("\\").removesuffix("%5C")
     request_id = uuid.uuid4().hex
     start = time.monotonic()
     response = await call_next(request)

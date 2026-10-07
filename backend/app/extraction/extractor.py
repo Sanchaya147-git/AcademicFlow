@@ -80,5 +80,48 @@ class DemoExtractor:
         ]
 
 
+class ClaudeExtractor:
+    def extract(self, text: str, report_date: date) -> list[Extracted]:
+        if not settings.ANTHROPIC_API_KEY:
+            raise ProviderError("ANTHROPIC_API_KEY is not configured")
+        import json
+        import urllib.request
+
+        payload = {
+            "model": settings.CLAUDE_MODEL,
+            "max_tokens": 1024,
+            "system": SYSTEM_PROMPT + f"\nreport_date={report_date.isoformat()}\nReturn strictly valid JSON only.",
+            "messages": [{"role": "user", "content": text}],
+        }
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=json.dumps(payload).encode(),
+            headers={
+                "x-api-key": settings.ANTHROPIC_API_KEY,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode())
+                content = data["content"][0]["text"].strip()
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0].strip()
+                elif "```" in content:
+                    content = content.split("```")[1].split("```")[0].strip()
+                batch = ExtractionBatch.model_validate_json(content)
+                if not 1 <= len(batch.events) <= 50:
+                    raise ValueError("Expected 1–50 events")
+                for event in batch.events:
+                    if not event.source_excerpt or event.source_excerpt not in text:
+                        event.source_excerpt = text
+                return batch.events
+        except Exception as exc:
+            raise ProviderError(f"Claude extraction failed: {exc}") from exc
+
+
 def get_extractor() -> Extractor:
+    if settings.AI_PROVIDER == "claude":
+        return ClaudeExtractor()
     return DemoExtractor() if settings.AI_PROVIDER == "demo" else OpenAIExtractor()

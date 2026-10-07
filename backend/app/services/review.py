@@ -61,6 +61,9 @@ def synchronize(db, event, activity, user, action):
         new=ActivityOut.model_validate(activity).model_dump(mode="json"),
     )
     event.disposition = "LINKED"
+    from app.services.excel_sync import sync_activity_to_excel
+
+    sync_activity_to_excel(activity)
 
 
 def resolve(db, match, user, reason, approve):

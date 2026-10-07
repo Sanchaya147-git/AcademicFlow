@@ -27,12 +27,23 @@ class Settings(BaseSettings):
     SEED_ADMIN_EMAIL: str = "admin@example.com"
     SEED_ADMIN_PASSWORD: str = ""
 
+    ANTHROPIC_API_KEY: str = ""
+    CLAUDE_MODEL: str = "claude-haiku-4-5-20251001"
+    WHATSAPP_PHONE_NUMBER_ID: str = ""
+    WHATSAPP_ACCESS_TOKEN: str = ""
+    WHATSAPP_VERIFY_TOKEN: str = "academicflow_whatsapp_verify_2026"
+    TEACHER_PHONE: str = "916380221196"
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_WHATSAPP_NUMBER: str = "+14155238886"
+    TUNNEL_URL: str = "https://broadway-shell-subcommittee-sitting.trycloudflare.com"
+
     @model_validator(mode="after")
     def validate_policy(self):
         if not 0 <= self.HUMAN_REVIEW_THRESHOLD < self.AUTO_LINK_THRESHOLD <= 1:
             raise ValueError("Confidence thresholds must satisfy 0 <= review < auto <= 1")
-        if self.AI_PROVIDER not in {"openai", "demo"}:
-            raise ValueError("AI_PROVIDER must be openai or demo")
+        if self.AI_PROVIDER not in {"openai", "demo", "claude"}:
+            raise ValueError("AI_PROVIDER must be openai, demo, or claude")
         if self.APP_ENV == "production" and (not self.COOKIE_SECURE or self.AI_PROVIDER == "demo"):
             raise ValueError("Production requires secure cookies and real AI provider")
         return self

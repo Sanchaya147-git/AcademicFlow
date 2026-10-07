@@ -110,3 +110,19 @@ own validation, including browser tests, production build and PostgreSQL concurr
 - Restarted the local PostgreSQL cluster at `/tmp/academicflow-pgdata` on `127.0.0.1:5439` with the existing custom extension path.
 - Added local FACULTY/CSE login `sanchaya123` using the existing scrypt password hashing and recorded an audit row in the same transaction. No password/token was added to project files.
 - Verified live POST `/api/auth/login` and authenticated GET `/api/auth/me`: both returned HTTP 200 for this account.
+
+## End-to-End Conversational AI Voice Agent & Multi-Lingual Tamil Integration
+- Integrated Google neural Tamil TTS (`Google.ta-IN-Standard-A`) and Amazon Polly (`Polly.Aditi`) for bilingual Tamil/English speech in Twilio Voice.
+- Configured Twilio `<Gather>` with `language="ta-IN"`, `enhanced="true"`, `speechTimeout="auto"`, and comprehensive domain & Tanglish vocabulary hints.
+- Fixed Twilio messaging webhook MIME type to `Content-Type: text/xml; charset=utf-8`, resolving Twilio Error 12300 and ensuring WhatsApp replies are delivered.
+- Implemented `backend/app/services/voice_agent.py` multi-turn conversational AI dialog engine:
+  - Claude Haiku actively identifies missing fields (Syllabus Topic, Class Section, Status).
+  - Asks polite, concise clarifying questions in Tamil and English over the call until the report is unambiguous.
+  - Automatically finalizes, records execution report in PostgreSQL with audit evidence, matches against syllabus plan, and syncs status to `data/master_academic_plan.xlsx`.
+- Added `/api/webhook/voice/conversation` multi-turn TwiML Gather webhook and `/api/webhook/voice/chat` API endpoint.
+- Updated frontend `frontend/components/workspace.tsx` with an interactive "Simulate Call" modal featuring turn-by-turn chat bubbles, Web Speech audio playback, preset test triggers, and 1-click mobile phone dialing via Twilio.
+- Nested `<Say voice="Polly.Aditi">` inside `<Gather>` to support instant barge-in and prevent silent speech drops on Twilio accounts without Google TTS add-ons.
+- Added URL-normalizing Starlette middleware in `main.py` stripping accidental trailing slashes and backslashes (`%5C`) to protect against webhook 404s.
+- Dynamic public URL detection via `x-forwarded-host` headers ensuring seamless multi-turn callbacks regardless of tunnel endpoint domain changes.
+- Automated tests passing (25 passed, 4 skipped) and Next.js production build compiling cleanly with 0 errors.
+
