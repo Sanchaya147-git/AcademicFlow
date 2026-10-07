@@ -175,6 +175,7 @@ def generate_plan_from_prompt_or_file(
             headers={
                 "x-api-key": settings.ANTHROPIC_API_KEY,
                 "anthropic-version": "2023-06-01",
+                "anthropic-beta": "pdfs-2024-09-25",
                 "content-type": "application/json",
             },
         )
