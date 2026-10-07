@@ -1,0 +1,130 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { api, post } from '@/lib/api';
+import { Activity } from '@/types';
+import { useAuth } from '@/components/auth-provider';
+import { ActivityTable } from '@/components/activity-table';
+import { Button } from '@/components/ui/button';
+import { CheckCircle2, RefreshCw } from 'lucide-react';
+
+export default function ActivitiesPage() {
+  const { user } = useAuth();
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  
+  // Filters
+  const [department, setDepartment] = useState('');
+  const [course, setCourse] = useState('');
+  const [status, setStatus] = useState('');
+  const [classSection, setClassSection] = useState('');
+  const [planDate, setPlanDate] = useState('');
+
+  const fetchActivities = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await api<Activity[]>('/activities');
+      setActivities(data);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchActivities();
+  }, []);
+
+  const filtered = activities.filter(a => 
+    (!department || a.department === department) && 
+    (!course || a.course === course) && 
+    (!status || a.status === status) && 
+    (!classSection || a.class_section === classSection) && 
+    (!planDate || (a.planned_start <= planDate && a.planned_end >= planDate))
+  );
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 flex flex-col h-[calc(100vh-6rem)]">
+      <div className="shrink-0 flex items-end justify-between gap-4">
+        <div>
+          <div className="text-[10px] font-bold tracking-widest text-primary uppercase mb-1">Academic Intelligence</div>
+          <h1 className="text-3xl font-bold tracking-tight text-text-primary">Master academic plan</h1>
+          <p className="text-sm text-text-muted mt-1">The institutional plan, connected to source-backed execution.</p>
+        </div>
+        {user?.role === 'ADMIN' && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={busy} 
+            onClick={async () => { 
+              if (!window.confirm('Generate embeddings for the full plan? Live OpenAI mode may incur API charges.')) return; 
+              setBusy(true); 
+              try { 
+                const result = await post<{ indexed: number }>('/activities/reindex'); 
+                setNotice(`Indexed ${result.indexed} activities.`); 
+              } catch(e) { 
+                setError((e as Error).message); 
+              } finally { 
+                setBusy(false); 
+              } 
+            }}
+          >
+            <RefreshCw size={14} className={`mr-2 ${busy ? 'animate-spin' : ''}`} />
+            Refresh plan embeddings
+          </Button>
+        )}
+      </div>
+
+      {notice && (
+        <div className="shrink-0 p-4 bg-success/10 border border-success/20 text-success rounded-xl text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2"><CheckCircle2 size={16} /><span>{notice}</span></div>
+          <button onClick={() => setNotice('')} className="hover:opacity-70">×</button>
+        </div>
+      )}
+      
+      {error && (
+        <div className="shrink-0 p-4 bg-danger/10 border border-danger/20 text-danger rounded-xl text-sm flex gap-2">
+          <span>{error}</span>
+          <button onClick={fetchActivities} className="underline font-medium ml-auto">Retry loading</button>
+        </div>
+      )}
+
+      {loading && !activities.length ? (
+        <div className="p-12 text-center text-sm text-text-muted animate-pulse">Loading academic plan…</div>
+      ) : (
+        <div className="flex flex-col flex-1 min-h-0 gap-6">
+          <div className="shrink-0 flex flex-wrap gap-3 bg-background/50 p-4 rounded-xl border border-border-subtle">
+            <select aria-label="Department" value={department} onChange={e => setDepartment(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]">
+              <option value="">All departments</option>
+              {[...new Set(activities.map(a => a.department))].map(v => <option key={v}>{v}</option>)}
+            </select>
+            <select aria-label="Course" value={course} onChange={e => setCourse(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]">
+              <option value="">All courses</option>
+              {[...new Set(activities.map(a => a.course))].map(v => <option key={v}>{v}</option>)}
+            </select>
+            <select aria-label="Status" value={status} onChange={e => setStatus(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]">
+              <option value="">All statuses</option>
+              {['PLANNED','IN_PROGRESS','COMPLETED','CANCELLED'].map(v => <option key={v}>{v}</option>)}
+            </select>
+            <select aria-label="Class section" value={classSection} onChange={e => setClassSection(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]">
+              <option value="">All classes</option>
+              {[...new Set(activities.map(a => a.class_section))].map(v => <option key={v}>{v}</option>)}
+            </select>
+            <input aria-label="Planned date" type="date" value={planDate} onChange={e => setPlanDate(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]" />
+            <Button variant="ghost" size="sm" className="h-9 text-text-muted hover:text-text-primary ml-auto" onClick={() => { setDepartment(''); setCourse(''); setStatus(''); setClassSection(''); setPlanDate(''); }}>
+              Clear filters
+            </Button>
+          </div>
+          
+          <div className="flex-1 min-h-0">
+            <ActivityTable data={filtered} schedule={false} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

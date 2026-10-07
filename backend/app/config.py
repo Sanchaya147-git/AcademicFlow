@@ -14,9 +14,11 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     JWT_SECRET: str = ""
     TOKEN_MINUTES: int = 60
-    AI_PROVIDER: str = "openai"
+    AI_PROVIDER: str = "claude"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-haiku-4-5-20251001"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS: Literal[1536] = 1536
     AUTO_LINK_THRESHOLD: float = 0.90
@@ -42,8 +44,8 @@ class Settings(BaseSettings):
     def validate_policy(self):
         if not 0 <= self.HUMAN_REVIEW_THRESHOLD < self.AUTO_LINK_THRESHOLD <= 1:
             raise ValueError("Confidence thresholds must satisfy 0 <= review < auto <= 1")
-        if self.AI_PROVIDER not in {"openai", "demo", "claude"}:
-            raise ValueError("AI_PROVIDER must be openai, demo, or claude")
+        if self.AI_PROVIDER not in {"openai", "claude", "anthropic", "demo"}:
+            raise ValueError("AI_PROVIDER must be openai, claude, anthropic, or demo")
         if self.APP_ENV == "production" and (not self.COOKIE_SECURE or self.AI_PROVIDER == "demo"):
             raise ValueError("Production requires secure cookies and real AI provider")
         return self

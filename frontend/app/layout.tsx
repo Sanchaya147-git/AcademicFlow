@@ -1,6 +1,26 @@
-import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
-export const metadata: Metadata = { title: 'AcademicFlow — Execution Intelligence', description: 'Source-backed academic execution intelligence, with humans in control.' };
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en"><body>{children}</body></html>;
+import { AuthProvider } from '@/components/auth-provider';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+
+export const metadata = {
+  title: 'AcademicFlow | Execution Intelligence',
+  description: 'AI-Powered Academic Execution Intelligence',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className={inter.variable}>
+      <body className="bg-background text-text-primary antialiased min-h-screen flex flex-col">
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
 }

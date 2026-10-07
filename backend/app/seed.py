@@ -50,10 +50,11 @@ COURSES = {
 }
 
 
-def seed(db, *, index=False):
+def seed(db, *, index=True):
     if len(settings.SEED_ADMIN_PASSWORD) < 12:
         raise ValueError("Set SEED_ADMIN_PASSWORD to at least 12 characters")
     admin = db.scalar(select(User).where(User.email == settings.SEED_ADMIN_EMAIL.lower()))
+    provider = Embeddings()
     if not admin:
         admin = User(
             name="Demo Administrator",
@@ -65,13 +66,101 @@ def seed(db, *, index=False):
         db.add(admin)
         db.flush()
     count = 0
-    provider = Embeddings()
+    # Add explicit master activities for MVP
+    master_activities = [
+        {
+            "activity_id": "CSE-DSA-L5-0042",
+            "department": "CSE",
+            "course": "Data Structures",
+            "unit": "Unit III — Linked Lists",
+            "activity_name": "Singly & Doubly Linked List Implementation",
+            "class_section": "CSE-C",
+            "faculty": "Dr. Priya",
+            "activity_type": "THEORY",
+            "planned_start": date(2026, 10, 6),
+            "planned_end": date(2026, 10, 6),
+            "status": "PLANNED",
+        },
+        {
+            "activity_id": "CSE-DBMS-L4-0018",
+            "department": "CSE",
+            "course": "DBMS",
+            "unit": "Unit IV — SQL",
+            "activity_name": "SQL Query Exercises",
+            "class_section": "CSE-C",
+            "faculty": "Dr. Arun",
+            "activity_type": "PRACTICAL",
+            "planned_start": date(2026, 10, 6),
+            "planned_end": date(2026, 10, 6),
+            "status": "PLANNED",
+        },
+        {
+            "activity_id": "CSE-DBMS-L4-0019",
+            "department": "CSE",
+            "course": "DBMS",
+            "unit": "Unit IV — SQL",
+            "activity_name": "SQL Practical Session",
+            "class_section": "CSE-C",
+            "faculty": "Dr. Arun",
+            "activity_type": "PRACTICAL",
+            "planned_start": date(2026, 10, 6),
+            "planned_end": date(2026, 10, 6),
+            "status": "PLANNED",
+        },
+        {
+            "activity_id": "CSE-DBMS-L4-0020",
+            "department": "CSE",
+            "course": "DBMS",
+            "unit": "Unit IV — SQL",
+            "activity_name": "Database Lab",
+            "class_section": "CSE-C",
+            "faculty": "Dr. Arun",
+            "activity_type": "LAB",
+            "planned_start": date(2026, 10, 6),
+            "planned_end": date(2026, 10, 6),
+            "status": "PLANNED",
+        },
+    ]
+    for data in master_activities:
+        existing_act = db.scalar(select(Activity).where(Activity.activity_id == data["activity_id"]))
+        if existing_act:
+            if index and (not existing_act.embedding or not existing_act.embedding_model):
+                existing_act.embedding = provider.embed(activity_text(existing_act))
+                existing_act.embedding_model = provider.model
+            continue
+        act = Activity(
+            activity_id=data["activity_id"],
+            semester="2026 Odd Semester",
+            department=data["department"],
+            course=data["course"],
+            unit=data["unit"],
+            activity_name=data["activity_name"],
+            activity_type=data["activity_type"],
+            faculty=data["faculty"],
+            class_section=data["class_section"],
+            location="CSE Block",
+            level=5,
+            planned_start=data["planned_start"],
+            planned_end=data["planned_end"],
+            status=data["status"],
+            is_demo=True,
+        )
+        if index:
+            act.embedding = provider.embed(activity_text(act))
+            act.embedding_model = provider.model
+        db.add(act)
+        count += 1
+
     for department in ["CSE", "ECE", "EEE", "MECH"]:
         for course, (unit, topics) in COURSES.items():
             for number, topic in enumerate(topics, 1):
                 code = "".join(word[0] for word in course.split()) if course != "DBMS" else "DBMS"
                 human_id = f"{department}-{code}-L6-{number:04d}"
-                if db.scalar(select(Activity).where(Activity.activity_id == human_id)):
+                existing_item = db.scalar(select(Activity).where(Activity.activity_id == human_id))
+                if existing_item:
+                    if index and (not existing_item.embedding or not existing_item.embedding_model):
+                        existing_item.embedding = provider.embed(activity_text(existing_item))
+                        existing_item.embedding_model = provider.model
                     continue
                 start = date(2026, 8, 20) + timedelta(days=number)
                 activity = Activity(

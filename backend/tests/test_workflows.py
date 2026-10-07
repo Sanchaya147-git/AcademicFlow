@@ -59,11 +59,11 @@ def test_tables_seed_constraints(setup, monkeypatch):
     }
     monkeypatch.setattr(settings, "SEED_ADMIN_PASSWORD", "safe-test-password")
     with Session(engine) as db:
-        assert seed(db, index=True) == 112
+        assert seed(db, index=True) == 116
         db.commit()
         assert seed(db, index=True) == 0
         db.commit()
-        assert db.scalar(select(func.count(Activity.id))) == 112
+        assert db.scalar(select(func.count(Activity.id))) == 116
         activity = db.scalar(select(Activity))
         assert len(activity.embedding) == 1536
         activity.completion_percentage = 101

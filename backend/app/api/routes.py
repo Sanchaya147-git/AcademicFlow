@@ -7,13 +7,13 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import settings
-from app.core.security import check_password, current_user, hash_password, require, token
-from app.db import get_db
-from app.extraction.extractor import get_extractor
-from app.extraction.service import extract_report
-from app.matching.embedding_service import activity_text, get_embeddings
-from app.matching.service import run_matching
+from ..config import settings
+from ..core.security import check_password, current_user, hash_password, require, token
+from ..db import get_db
+from ..extraction.extractor import get_extractor
+from ..extraction.service import extract_report
+from ..matching.embedding_service import activity_text, get_embeddings
+from ..matching.service import run_matching
 from app.models import Activity, Audit, Event, ExecutionLink, Match, Report, User
 from app.schemas import (
     ActivityCreate,
@@ -31,9 +31,9 @@ from app.schemas import (
     UserCreate,
     UserOut,
 )
-from app.services import analytics, review, spreadsheet
-from app.services.access import accessible_activity, accessible_event, accessible_report, activity_query, report_query
-from app.services.audit import record
+from ..services import analytics, review, spreadsheet
+from ..services.access import accessible_activity, accessible_event, accessible_report, activity_query, report_query
+from ..services.audit import record
 
 router = APIRouter(prefix="/api")
 Db = Depends(get_db)

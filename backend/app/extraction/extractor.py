@@ -22,6 +22,41 @@ class Extractor(Protocol):
     def extract(self, text: str, report_date: date) -> list[Extracted]: ...
 
 
+class ClaudeExtractor:
+    def extract(self, text: str, report_date: date) -> list[Extracted]:
+        if not settings.ANTHROPIC_API_KEY:
+            raise ProviderError("ANTHROPIC_API_KEY is not configured")
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=30, max_retries=2)
+            prompt = (
+                SYSTEM_PROMPT
+                + f"\nreport_date={report_date.isoformat()}\nFor class_section preserve full section code if given (e.g. CSE-C)."
+                + "\nYou must respond ONLY with a raw JSON object matching the requested schema. Do not include markdown formatting or commentary."
+            )
+            response = client.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=2048,
+                system=prompt,
+                messages=[{"role": "user", "content": text}],
+            )
+            raw_content = response.content[0].text if response.content else ""
+            cleaned = re.sub(r"^```(?:json)?\s*", "", raw_content.strip(), flags=re.IGNORECASE)
+            cleaned = re.sub(r"\s*```$", "", cleaned.strip())
+            match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
+            if match:
+                cleaned = match.group(0)
+            batch = ExtractionBatch.model_validate_json(cleaned)
+            if not 1 <= len(batch.events) <= 50:
+                raise ValueError("Expected 1–50 events")
+            for event in batch.events:
+                if not event.source_excerpt or event.source_excerpt.strip(". ") not in text:
+                    event.source_excerpt = text
+            return batch.events
+        except Exception as exc:
+            raise ProviderError(f"Claude extraction provider failed: {exc}") from exc
+
+
 class OpenAIExtractor:
     def extract(self, text, report_date):
         if not settings.OPENAI_API_KEY:
@@ -122,6 +157,8 @@ class ClaudeExtractor:
 
 
 def get_extractor() -> Extractor:
-    if settings.AI_PROVIDER == "claude":
+    if settings.AI_PROVIDER in {"claude", "anthropic"}:
         return ClaudeExtractor()
-    return DemoExtractor() if settings.AI_PROVIDER == "demo" else OpenAIExtractor()
+    if settings.AI_PROVIDER == "demo":
+        return DemoExtractor()
+    return OpenAIExtractor()
