@@ -67,7 +67,7 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
   const [callLoading, setCallLoading] = useState(false);
   const [callResult, setCallResult] = useState<{ status: string; call_sid?: string; to?: string } | null>(null);
 
-  const [chatSessionId, setChatSessionId] = useState('sim_' + Math.random().toString(36).substring(2, 9));
+  const [chatSessionId, setChatSessionId] = useState('sim_session_1');
   const [chatHistory, setChatHistory] = useState<Array<{ sender: 'ai' | 'user'; text: string; tamil?: string }>>([
     {
       sender: 'ai',
