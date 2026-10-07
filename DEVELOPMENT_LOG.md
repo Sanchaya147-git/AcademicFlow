@@ -166,4 +166,6 @@ own validation, including browser tests, production build and PostgreSQL concurr
     - Setup Docker Compose production stack: PostgreSQL 16 + pgvector, FastAPI, Next.js 16 standalone runner.
     - Configured Nginx reverse proxy with automated Let's Encrypt SSL via Certbot.
     - Live domain: `https://academicflowz.duckdns.org`.
-    - Tested live authentication, health checks, and Twilio voice/WhatsApp webhooks over HTTPS.
+    - Resolved client-side "Failed to fetch" error by updating `frontend/lib/api.ts` to use relative URLs (`/api/...`) in the browser, eliminating CORS issues and domain baking mismatches.
+    - Verified live authentication, overview analytics, and Twilio voice/WhatsApp webhooks over HTTPS with valid Let's Encrypt TLS certificate.
+
