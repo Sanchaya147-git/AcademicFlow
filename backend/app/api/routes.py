@@ -4,6 +4,7 @@ from datetime import date, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,7 @@ from app.extraction.extractor import get_extractor
 from app.extraction.service import extract_report
 from app.matching.embedding_service import activity_text, get_embeddings
 from app.services.weekly_excel import generate_classroom_excel
+from app.services.excel_sync import EXCEL_PATH, ensure_master_excel
 from app.services.plan_generator import generate_plan_from_prompt_or_file
 from app.matching.service import run_matching
 from app.models import Activity, Audit, Classroom, ClassroomMember, Event, ExecutionLink, Match, Report, User, generate_join_code
@@ -701,6 +703,20 @@ def download_classroom_excel(classroom_id: UUID, db: Session = Db, user: User = 
         content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/excel/master")
+def download_master_academic_excel(db: Session = Db, user: User = Auth):
+    """Exports institutional live synchronized master academic plan workbook."""
+    activities = db.scalars(select(Activity).order_by(Activity.planned_start, Activity.activity_id)).all()
+    ensure_master_excel(activities)
+    if not EXCEL_PATH.exists():
+        raise HTTPException(404, "Master Excel not found")
+    return FileResponse(
+        path=str(EXCEL_PATH),
+        filename="master_academic_plan.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 

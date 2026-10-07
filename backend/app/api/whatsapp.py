@@ -198,6 +198,19 @@ async def handle_twilio_message(request: Request, db: Session = Depends(get_db))
     if not text_content:
         return Response(content="<Response></Response>", media_type="text/xml")
 
+    # Handle Sandbox opt-in commands gracefully
+    if text_content.lower().startswith("join ") or text_content.lower() == "join":
+        welcome_twiml = """<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message>AcademicFlow Connected! 🎓
+
+Welcome Professor. You can now text your daily class execution updates directly in this chat.
+
+Example:
+"Taught Quantum Cryptography &amp; Quantum Machine Learning: Advanced Cryptographic Techniques for CSE-C today. It was partially completed."</Message>
+</Response>"""
+        return Response(content=welcome_twiml, media_type="text/xml")
+
     # Ensure master Excel plan is initialized
     activities = db.scalars(select(Activity)).all()
     ensure_master_excel(activities)
@@ -271,12 +284,15 @@ def _get_public_base_url(request: Request) -> str:
     proto = request.headers.get("x-forwarded-proto") or "https"
     if host and "localhost" not in host and "127.0.0.1" not in host:
         return f"{proto}://{host}"
-    return os.getenv("TUNNEL_URL", "https://contribution-mathematical-revelation-framework.trycloudflare.com")
+    return settings.TUNNEL_URL
 
 
 @router.api_route("/voice/prompt", methods=["GET", "POST"])
 @router.api_route("/voice/prompt/", methods=["GET", "POST"])
 @router.api_route(r"/voice/prompt\\", methods=["GET", "POST"])
+@router.api_route("/voice/incoming", methods=["GET", "POST"])
+@router.api_route("/voice/incoming/", methods=["GET", "POST"])
+@router.api_route(r"/voice/incoming\\", methods=["GET", "POST"])
 async def voice_prompt(request: Request):
     """Returns TwiML asking the faculty to speak their update in English or Tamil."""
     base_url = _get_public_base_url(request)

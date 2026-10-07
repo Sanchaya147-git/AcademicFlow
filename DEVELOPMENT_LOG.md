@@ -157,3 +157,7 @@ own validation, including browser tests, production build and PostgreSQL concurr
     - Upgraded `backend/app/services/plan_generator.py` with multi-format image and PDF MIME resolution, regex JSON array extractor, and flexible topic/unit mapping.
     - Verified live Anthropic Claude Haiku API parsing user timetable image uploads into sequential syllabus sessions.
     - Verified dynamic context-aware fallback ensuring custom course-specific curricula if the LLM provider times out or image format is invalid.
+  - **Real-Time Master Excel Sync & Export:**
+    - Added direct institutional export endpoint `GET /api/excel/master` returning the live synchronized Excel plan.
+    - Added prominent "Master Excel" download button in the frontend topbar action header.
+    - Preserved per-classroom weekly formatted Excel workbooks (`GET /api/classrooms/{id}/excel`).
