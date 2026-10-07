@@ -174,4 +174,6 @@ own validation, including browser tests, production build and PostgreSQL concurr
     - Pinned active model `claude-haiku-4-5-20251001` across production compose and EC2 environment, resolving Anthropic 404 model errors during extraction and voice conversation turns.
     - Verified text pipeline (Twilio WhatsApp webhook and authenticated `/api/reports/text` + `/api/extraction/{id}`) delivering valid TwiML and structured event extraction.
     - Verified voice pipeline (`/api/webhook/voice/prompt`, multi-turn `/api/webhook/voice/conversation`, and `/api/webhook/voice/chat`) delivering dynamic bilingual English/Tamil prompts, intelligent missing-field clarifications, and 200 OK session finalization.
+    - Updated matching decision logic in `matching/service.py`: the highest confidence candidate automatically auto-approves (`AUTO_LINKED`), updating syllabus and syncing to master Excel, while remaining lower candidates are queued as alternative candidates for review.
+    - Resolved voice call cut-off by extending Twilio `<Gather>`: increased `timeout` to 15s, replaced `speechTimeout="auto"` with `speechTimeout="5"` (5 seconds silence before end-of-speech), added `maxSpeechTime="60"`, and enabled `speechModel="experimental_conversations"`.
 
