@@ -153,3 +153,7 @@ own validation, including browser tests, production build and PostgreSQL concurr
 - **Verification & Test Suite:**
   - Full automated pytest suite passing: **28 passed, 4 skipped, 0 failures**.
   - Next.js production build (`npm run build`) passing with **0 TypeScript and 0 React errors**.
+  - **Live Claude Vision OCR & Prompt Plan Generation:**
+    - Upgraded `backend/app/services/plan_generator.py` with multi-format image and PDF MIME resolution, regex JSON array extractor, and flexible topic/unit mapping.
+    - Verified live Anthropic Claude Haiku API parsing user timetable image uploads into sequential syllabus sessions.
+    - Verified dynamic context-aware fallback ensuring custom course-specific curricula if the LLM provider times out or image format is invalid.
