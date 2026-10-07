@@ -102,20 +102,50 @@ def _parse_claude_json_response(raw_text: str) -> List[Dict[str, Any]]:
     elif "```" in text:
         text = text.split("```")[1].split("```")[0].strip()
 
-    # Try direct parse
+    parsed = None
+    # 1. Try direct parse
     try:
         parsed = json.loads(text)
     except Exception:
-        # Fallback to regex finding brackets
+        pass
+
+    # 2. Try JSONDecoder raw_decode starting from first [ or {
+    if parsed is None:
+        decoder = json.JSONDecoder()
+        for start_char in ("[", "{"):
+            idx = text.find(start_char)
+            if idx != -1:
+                try:
+                    obj, _ = decoder.raw_decode(text[idx:])
+                    parsed = obj
+                    break
+                except Exception:
+                    pass
+
+    # 3. Fallback to regex finding array
+    if parsed is None:
         array_match = re.search(r"\[\s*\{.*\}\s*\]", text, re.DOTALL)
         if array_match:
-            parsed = json.loads(array_match.group(0))
-        else:
-            obj_match = re.search(r"\{\s*\".*\"\s*:.*\}", text, re.DOTALL)
-            if obj_match:
-                parsed = json.loads(obj_match.group(0))
-            else:
-                raise ValueError("No valid JSON found in Claude response")
+            try:
+                parsed = json.loads(array_match.group(0))
+            except Exception:
+                pass
+
+    # 4. Fallback to extracting all JSON object blocks if NDJSON or stream
+    if parsed is None:
+        items = []
+        for block in re.findall(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", text, re.DOTALL):
+            try:
+                item = json.loads(block)
+                if isinstance(item, dict) and any(k in item for k in ("activity_id", "activity_name", "topic", "course")):
+                    items.append(item)
+            except Exception:
+                pass
+        if items:
+            return items
+
+    if parsed is None:
+        raise ValueError("No valid JSON found in Claude response")
 
     # If top-level object, find any contained list
     if isinstance(parsed, dict):

@@ -15,7 +15,7 @@ from app.extraction.extractor import get_extractor
 from app.extraction.service import extract_report
 from app.matching.embedding_service import activity_text, get_embeddings
 from app.services.weekly_excel import generate_classroom_excel
-from app.services.excel_sync import EXCEL_PATH, ensure_master_excel
+from app.services.excel_sync import EXCEL_PATH, ensure_master_excel, sync_activities_to_excel
 from app.services.plan_generator import generate_plan_from_prompt_or_file
 from app.matching.service import run_matching
 from app.models import Activity, Audit, Classroom, ClassroomMember, Event, ExecutionLink, Match, Report, User, generate_join_code
@@ -710,7 +710,7 @@ def download_classroom_excel(classroom_id: UUID, db: Session = Db, user: User = 
 def download_master_academic_excel(db: Session = Db, user: User = Auth):
     """Exports institutional live synchronized master academic plan workbook."""
     activities = db.scalars(select(Activity).order_by(Activity.planned_start, Activity.activity_id)).all()
-    ensure_master_excel(activities)
+    sync_activities_to_excel(activities)
     if not EXCEL_PATH.exists():
         raise HTTPException(404, "Master Excel not found")
     return FileResponse(
@@ -778,6 +778,13 @@ def publish_plan(
     if not activities_data:
         raise HTTPException(400, "No activities to publish")
 
+    c_uuid = None
+    if classroom_id:
+        try:
+            c_uuid = UUID(str(classroom_id))
+        except (ValueError, TypeError):
+            c_uuid = None
+
     created = []
     for item in activities_data:
         act_id = item.get("activity_id")
@@ -817,7 +824,7 @@ def publish_plan(
             level=item.get("level", 5),
             planned_start=p_start,
             planned_end=p_end,
-            classroom_id=UUID(classroom_id) if classroom_id else None,
+            classroom_id=c_uuid,
             status="PLANNED",
             completion_percentage=0.0,
             is_demo=False,
@@ -828,11 +835,12 @@ def publish_plan(
         created.append(act)
 
     db.commit()
-    record(db, user, "PLAN_PUBLISHED", new={"count": len(created), "classroom_id": str(classroom_id) if classroom_id else None})
+    sync_activities_to_excel(created)
+    record(db, user, "PLAN_PUBLISHED", new={"count": len(created), "classroom_id": str(c_uuid) if c_uuid else None})
     return {
         "status": "ok",
         "published_count": len(created),
-        "classroom_id": classroom_id,
+        "classroom_id": str(c_uuid) if c_uuid else None,
     }
 
 

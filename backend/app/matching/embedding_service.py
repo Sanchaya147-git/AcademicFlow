@@ -25,10 +25,12 @@ def activity_text(activity):
 class Embeddings:
     @property
     def model(self):
-        return "demo-hash-v1" if settings.AI_PROVIDER in {"demo", "claude"} else settings.EMBEDDING_MODEL
+        if settings.AI_PROVIDER in {"demo", "claude"} or not settings.OPENAI_API_KEY:
+            return "demo-hash-v1"
+        return settings.EMBEDDING_MODEL
 
     def embed(self, text):
-        if settings.AI_PROVIDER in {"demo", "claude"}:
+        if settings.AI_PROVIDER in {"demo", "claude"} or not settings.OPENAI_API_KEY:
             # Deterministic lexical vectors for offline plumbing demos, not semantic AI.
             vector = [0.0] * settings.EMBEDDING_DIMENSIONS
             for word in normalize(text).split():

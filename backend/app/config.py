@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     def validate_policy(self):
         if not 0 <= self.HUMAN_REVIEW_THRESHOLD < self.AUTO_LINK_THRESHOLD <= 1:
             raise ValueError("Confidence thresholds must satisfy 0 <= review < auto <= 1")
+        if not self.AI_PROVIDER or (self.AI_PROVIDER == "openai" and not self.OPENAI_API_KEY and self.ANTHROPIC_API_KEY):
+            self.AI_PROVIDER = "claude"
         if self.AI_PROVIDER not in {"openai", "demo", "claude"}:
             raise ValueError("AI_PROVIDER must be openai, demo, or claude")
         if self.APP_ENV == "production" and (not self.COOKIE_SECURE or self.AI_PROVIDER == "demo"):
