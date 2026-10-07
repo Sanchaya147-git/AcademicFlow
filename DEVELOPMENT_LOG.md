@@ -167,5 +167,8 @@ own validation, including browser tests, production build and PostgreSQL concurr
     - Configured Nginx reverse proxy with automated Let's Encrypt SSL via Certbot.
     - Live domain: `https://academicflowz.duckdns.org`.
     - Resolved client-side "Failed to fetch" error by updating `frontend/lib/api.ts` to use relative URLs (`/api/...`) in the browser, eliminating CORS issues and domain baking mismatches.
-    - Verified live authentication, overview analytics, and Twilio voice/WhatsApp webhooks over HTTPS with valid Let's Encrypt TLS certificate.
+    - Resolved 502 Bad Gateway during plan publishing by ensuring `AI_PROVIDER=claude` and `CLAUDE_MODEL` are passed into the production container, and adding automatic fallback to deterministic lexical vectors in `embedding_service.py` when OpenAI credentials are absent.
+    - Enhanced `plan_generator.py` JSON parser with `raw_decode` and multiple-object extraction to prevent "Extra data" syntax errors from Claude OCR responses.
+    - Added automated synchronization (`sync_activities_to_excel`) in `backend/app/services/excel_sync.py` to immediately write newly published plan activities into `master_academic_plan.xlsx`.
+    - Verified live authentication, plan publishing (201 Created), overview analytics, and Twilio voice/WhatsApp webhooks over HTTPS with valid Let's Encrypt TLS certificate.
 
