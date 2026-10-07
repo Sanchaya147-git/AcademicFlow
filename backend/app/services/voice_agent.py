@@ -163,8 +163,8 @@ def process_voice_turn(session_id: str, user_speech: str, db: Session, user: Opt
     assistant_record = f"{english_reply} ({tamil_reply})"
     session["turns"].append({"role": "assistant", "content": assistant_record})
 
-    # If turn count reaches 4, force complete to avoid endless loops
-    if session["turn_count"] >= 4:
+    # If turn count reaches 6, force complete to avoid endless loops
+    if session["turn_count"] >= 6:
         is_complete = True
 
     match_result = None

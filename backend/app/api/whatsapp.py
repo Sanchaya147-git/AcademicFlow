@@ -311,7 +311,7 @@ async def voice_prompt(request: Request):
     )
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Gather input="speech" language="ta-IN,en-IN" timeout="8" speechTimeout="auto" enhanced="true" hints="{hints}" action="{action_url}" method="POST">
+    <Gather input="speech" language="ta-IN,en-IN" timeout="15" speechTimeout="5" maxSpeechTime="60" speechModel="experimental_conversations" enhanced="true" hints="{hints}" action="{action_url}" method="POST">
         <Say voice="Polly.Aditi" language="en-IN">Vanakkam Professor! Welcome to AcademicFlow. Please say what topic and section you taught in class today.</Say>
     </Gather>
     <Say voice="Polly.Aditi" language="en-IN">We did not receive any response. Nandri, goodbye!</Say>
@@ -348,7 +348,7 @@ async def voice_conversation(request: Request, background_tasks: BackgroundTasks
     if not speech_text:
         twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Gather input="speech" language="ta-IN,en-IN" timeout="8" speechTimeout="auto" enhanced="true" hints="{hints}" action="{action_url}" method="POST">
+    <Gather input="speech" language="ta-IN,en-IN" timeout="15" speechTimeout="5" maxSpeechTime="60" speechModel="experimental_conversations" enhanced="true" hints="{hints}" action="{action_url}" method="POST">
         <Say voice="Polly.Aditi" language="en-IN">We could not hear your response. Please say what you taught today.</Say>
     </Gather>
     <Say voice="Polly.Aditi" language="en-IN">No response detected. Nandri, goodbye!</Say>
@@ -377,7 +377,7 @@ async def voice_conversation(request: Request, background_tasks: BackgroundTasks
     else:
         twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Gather input="speech" language="ta-IN,en-IN" timeout="8" speechTimeout="auto" enhanced="true" hints="{hints}" action="{action_url}" method="POST">
+    <Gather input="speech" language="ta-IN,en-IN" timeout="15" speechTimeout="5" maxSpeechTime="60" speechModel="experimental_conversations" enhanced="true" hints="{hints}" action="{action_url}" method="POST">
         <Say voice="Polly.Aditi" language="en-IN">{escaped_english}</Say>
     </Gather>
     <Say voice="Polly.Aditi" language="en-IN">Thank you Professor. Have a great day!</Say>

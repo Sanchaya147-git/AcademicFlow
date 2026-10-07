@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS: Literal[1536] = 1536
-    AUTO_LINK_THRESHOLD: float = 0.90
-    HUMAN_REVIEW_THRESHOLD: float = 0.50
+    AUTO_LINK_THRESHOLD: float = 0.50
+    HUMAN_REVIEW_THRESHOLD: float = 0.20
     UPLOAD_DIR: Path = ROOT / "data/uploads"
     MAX_UPLOAD_BYTES: int = 5 * 1024 * 1024
     COOKIE_SECURE: bool = False

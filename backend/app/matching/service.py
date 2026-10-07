@@ -22,20 +22,30 @@ def run_matching(db, event, user, provider):
     scored = sorted(
         [(a, score(event, a, sim)) for a, sim in candidates], key=lambda pair: pair[1]["final_confidence"], reverse=True
     )
-    if len(scored) > 1 and scored[0][1]["final_confidence"] - scored[1][1]["final_confidence"] < 0.05:
-        for _, result in scored:
-            if result["final_confidence"] >= settings.AUTO_LINK_THRESHOLD:
-                result["final_confidence"] = max(settings.HUMAN_REVIEW_THRESHOLD, settings.AUTO_LINK_THRESHOLD - 0.001)
-                result["match_reason"] += " Auto-link blocked: competing candidates within 5 percentage points."
-    decision = decide(scored[0][1]["final_confidence"]) if scored else "UNMATCHED"
-    event.disposition = decision
+    # Highest percentage candidate approves automatically; remaining candidates queued for review
+    min_auto = min(settings.AUTO_LINK_THRESHOLD, 0.40)
+    has_match = bool(scored and scored[0][1]["final_confidence"] >= min_auto)
+    top_decision = "AUTO_LINK" if has_match else ("HUMAN_REVIEW" if scored and scored[0][1]["final_confidence"] >= 0.20 else "UNMATCHED")
+    event.disposition = top_decision
     results = []
-    for activity, result in scored:
+    for idx, (activity, result) in enumerate(scored):
+        if idx == 0 and top_decision == "AUTO_LINK":
+            m_decision = "AUTO_LINK"
+            m_decision_type = "AUTO_LINKED"
+            result["match_reason"] = f"Top-ranked candidate ({result['final_confidence']:.1%}) automatically approved. " + result["match_reason"]
+        elif idx > 0 and top_decision == "AUTO_LINK":
+            m_decision = "HUMAN_REVIEW"
+            m_decision_type = "PENDING"
+            result["match_reason"] = f"Alternative candidate ({result['final_confidence']:.1%}) queued for review. " + result["match_reason"]
+        else:
+            m_decision = top_decision
+            m_decision_type = "PENDING" if top_decision == "HUMAN_REVIEW" else "UNMATCHED"
+
         match = Match(
             event_id=event.id,
             activity_id=activity.id,
-            decision=decision,
-            decision_type="PENDING" if decision == "HUMAN_REVIEW" else "UNMATCHED",
+            decision=m_decision,
+            decision_type=m_decision_type,
             **result,
         )
         match.evidence = {**match.evidence, "provider": provider.model, "source_excerpt": event.source_excerpt}
@@ -60,7 +70,7 @@ def run_matching(db, event, user, provider):
         "MATCH_CREATED",
         event=event,
         new={
-            "decision": decision,
+            "decision": top_decision,
             "candidates": [
                 {
                     "id": str(m.id),
@@ -72,12 +82,8 @@ def run_matching(db, event, user, provider):
             ],
         },
     )
-    if decision == "AUTO_LINK":
-        top = results[0]
-        top.decision_type = "AUTO_LINKED"
-        for other in results[1:]:
-            other.decision_type = "SUPERSEDED"
+    if top_decision == "AUTO_LINK":
         synchronize(db, event, scored[0][0], user, "AUTO_LINKED")
     else:
-        record(db, user, "REVIEW_CREATED" if decision == "HUMAN_REVIEW" else "UNMATCHED", event=event)
+        record(db, user, "REVIEW_CREATED" if top_decision == "HUMAN_REVIEW" else "UNMATCHED", event=event)
     return results
