@@ -38,7 +38,8 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_WHATSAPP_NUMBER: str = "+14155238886"
-    TUNNEL_URL: str = "https://broadway-shell-subcommittee-sitting.trycloudflare.com"
+    TWILIO_VOICE_NUMBER: str = ""
+    TUNNEL_URL: str = ""
 
     @model_validator(mode="after")
     def validate_policy(self):

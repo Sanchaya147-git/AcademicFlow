@@ -271,7 +271,7 @@ def _get_public_base_url(request: Request) -> str:
     proto = request.headers.get("x-forwarded-proto") or "https"
     if host and "localhost" not in host and "127.0.0.1" not in host:
         return f"{proto}://{host}"
-    return os.getenv("TUNNEL_URL", "https://worship-wto-dividend-leslie.trycloudflare.com")
+    return os.getenv("TUNNEL_URL") or settings.TUNNEL_URL or "http://localhost:8000"
 
 
 @router.api_route("/voice/prompt", methods=["GET", "POST"])
@@ -527,7 +527,9 @@ async def simulate_voice_call(request: Request, db: Session = Depends(get_db)):
 async def trigger_outbound_call(request: Request, to_phone: str = Query(None, description="Phone number to call")):
     """Initiates an outbound phone call to the teacher via Twilio."""
     if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
-        raise HTTPException(status_code=500, detail="Twilio credentials not configured")
+        raise HTTPException(status_code=503, detail="TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be configured")
+    if not settings.TWILIO_VOICE_NUMBER:
+        raise HTTPException(status_code=503, detail="TWILIO_VOICE_NUMBER must be a Twilio voice-capable number")
 
     target_phone = to_phone or f"+{settings.TEACHER_PHONE}"
     if not target_phone.startswith("+"):
@@ -535,11 +537,13 @@ async def trigger_outbound_call(request: Request, to_phone: str = Query(None, de
 
     url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Calls.json"
     base_url = _get_public_base_url(request)
+    if "localhost" in base_url or "127.0.0.1" in base_url:
+        raise HTTPException(status_code=503, detail="TUNNEL_URL must expose the backend publicly for Twilio callbacks")
     callback_url = f"{base_url}/api/webhook/voice/prompt"
 
     data = urllib.parse.urlencode({
         "To": target_phone,
-        "From": settings.TWILIO_WHATSAPP_NUMBER,
+        "From": settings.TWILIO_VOICE_NUMBER,
         "Url": callback_url,
     }).encode("utf-8")
 
