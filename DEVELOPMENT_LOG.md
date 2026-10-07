@@ -161,3 +161,9 @@ own validation, including browser tests, production build and PostgreSQL concurr
     - Added direct institutional export endpoint `GET /api/excel/master` returning the live synchronized Excel plan.
     - Added prominent "Master Excel" download button in the frontend topbar action header.
     - Preserved per-classroom weekly formatted Excel workbooks (`GET /api/classrooms/{id}/excel`).
+  - **AWS EC2 Production Deployment & SSL:**
+    - Deployed on AWS EC2 (`3.7.29.147`, Ubuntu 24.04, Mumbai `ap-south-1`).
+    - Setup Docker Compose production stack: PostgreSQL 16 + pgvector, FastAPI, Next.js 16 standalone runner.
+    - Configured Nginx reverse proxy with automated Let's Encrypt SSL via Certbot.
+    - Live domain: `https://academicflowz.duckdns.org`.
+    - Tested live authentication, health checks, and Twilio voice/WhatsApp webhooks over HTTPS.
