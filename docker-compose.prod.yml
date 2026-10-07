@@ -1,0 +1,56 @@
+services:
+  db:
+    image: pgvector/pgvector:0.8.2-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-academicflow}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-academicflow123}
+      POSTGRES_DB: ${DATABASE_NAME:-academicflow}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://${DATABASE_USER:-academicflow}:${DATABASE_PASSWORD:-academicflow123}@db:5432/${DATABASE_NAME:-academicflow}
+      ENVIRONMENT: production
+      APP_SECRET: ${APP_SECRET}
+      SECRET_KEY: ${SECRET_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_WHATSAPP_NUMBER: ${TWILIO_WHATSAPP_NUMBER}
+      TEACHER_PHONE: ${TEACHER_PHONE}
+      TUNNEL_URL: https://academicflow.duckdns.org
+      CORS_ORIGINS: '["https://academicflow.duckdns.org", "http://localhost:3000"]'
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://academicflow.duckdns.org
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
