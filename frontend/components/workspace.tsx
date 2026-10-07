@@ -1,19 +1,30 @@
 'use client';
 import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { Activity as Pulse, ArrowRight, BookOpen, CheckCircle2, ClipboardList, Clock3, FileText, GraduationCap, LayoutDashboard, LogOut, RefreshCw, SearchCheck, ShieldCheck, Upload, BarChart3, CalendarDays, CircleHelp, Bell, PhoneCall } from 'lucide-react';
+import { Activity as Pulse, ArrowRight, BookOpen, CheckCircle2, ClipboardList, Clock3, FileText, GraduationCap, LayoutDashboard, LogOut, RefreshCw, SearchCheck, ShieldCheck, Upload, BarChart3, CalendarDays, CircleHelp, Bell, PhoneCall, Sparkles, Users } from 'lucide-react';
 import { api, post } from '@/lib/api';
 import { Activity, Analytics, Audit, Candidate, Event as ExecutionEvent, Report, ReviewItem, User } from '@/types';
 import { ActivityTable } from './activity-table';
 import { Charts } from './analytics-charts';
+import { ClassroomHub } from './classroom-hub';
+import { PlanGenerator } from './plan-generator';
 
 const links = [
-  ['dashboard', 'Overview', LayoutDashboard], ['reports', 'Reports', FileText], ['review', 'Review queue', SearchCheck],
-  ['unmatched', 'Unmatched', CircleHelp], ['activities', 'Academic plan', BookOpen], ['schedule', 'Schedule', CalendarDays],
-  ['analytics', 'Analytics', BarChart3], ['audit', 'Audit trail', ShieldCheck],
+  ['dashboard', 'Overview', LayoutDashboard],
+  ['classrooms', 'Classrooms & Hub', Users],
+  ['plan-generator', 'AI Plan Prompter', Sparkles],
+  ['reports', 'Reports', FileText],
+  ['review', 'Review queue', SearchCheck],
+  ['unmatched', 'Unmatched', CircleHelp],
+  ['activities', 'Academic plan', BookOpen],
+  ['schedule', 'Schedule', CalendarDays],
+  ['analytics', 'Analytics', BarChart3],
+  ['audit', 'Audit trail', ShieldCheck],
 ] as const;
 const titles: Record<string, [string, string]> = {
   dashboard: ['Execution overview', 'A clear view of what was planned, reported, and delivered.'],
+  classrooms: ['Classrooms & Collaboration Hub', 'Manage department groups, join codes, and teacher subject enrollments.'],
+  'plan-generator': ['AI Timetable & Plan Generator', 'Extract academic schedules from timetable images, PDFs, or natural language prompts.'],
   reports: ['Faculty reports', 'Capture academic execution from natural language or spreadsheets.'],
   review: ['Human review queue', 'Your academic context. AI-assisted recommendations. Your decision.'],
   unmatched: ['Unmatched activities', 'Every report matters — nothing is silently discarded.'],
@@ -146,6 +157,8 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
       : section === 'reports' ? api('/reports')
       : section === 'review' || section === 'unmatched'
         ? Promise.all([api(section === 'review' ? '/review/queue' : '/review/unmatched'), api('/activities')])
+      : section === 'classrooms' || section === 'plan-generator'
+        ? Promise.resolve(null)
       : api('/audit');
     request.then(value => {
       if (!active) return;
@@ -155,6 +168,8 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
       else if (section === 'reports') setReports(value as Report[]);
       else if (section === 'review' || section === 'unmatched') {
         const [items, plan] = value as [ReviewItem[], Activity[]]; setQueue(items); setActivities(plan);
+      } else if (section === 'classrooms' || section === 'plan-generator') {
+        /* Self-managed */
       } else setAudit(value as Audit[]);
     }).catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -220,7 +235,7 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
   if (booting) return <div className="login-page"><p role="status">Connecting to AcademicFlow…</p></div>;
   if (!user) return <div className="login-page"><div className="login-card"><div className="brand-mark"><GraduationCap size={28} /></div><h1>AcademicFlow</h1><p>Academic execution, connected.</p><form onSubmit={authenticate}><label>Email<input name="email" type="email" required autoComplete="username" placeholder="Your institutional email" /></label><label>Password<input name="password" type="password" required autoComplete="current-password" /></label><button className="primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in securely'}<ArrowRight size={17} /></button></form>{error && <p className="error" role="alert">{error}</p>}<small>Use the administrator account configured during seed setup. No default password.</small></div></div>;
 
-  return <div className="workspace"><aside className="sidebar"><Link href="/dashboard" className="brand"><div className="brand-mark"><GraduationCap size={23} /></div><div>AcademicFlow<small>EXECUTION INTELLIGENCE</small></div></Link><div className="institution"><span className="institution-icon">AF</span><div>Academic workspace<small>{user.department || 'Institution-wide access'}</small></div></div><p className="nav-label">WORKSPACE</p><nav>{links.filter(([key]) => !['review','unmatched'].includes(key) || ['ADMIN','COORDINATOR','HOD'].includes(user.role)).map(([key, label, Icon]) => <Link key={key} href={`/${key}`} className={section === key ? 'active' : ''}><Icon size={18} />{label}{key === 'review' && analytics?.summary.needs_review ? <span className="nav-count">{analytics.summary.needs_review}</span> : null}</Link>)}</nav><div className="trust-card"><ShieldCheck size={20} /><strong>Human judgment matters</strong><p>AI-assisted — review when uncertain. Every decision retains its evidence.</p></div><div className="sidebar-footer"><span className="status-dot" /> Local MVP · {provider === 'demo' ? 'Offline demo provider' : 'OpenAI provider'}</div></aside>
+  return <div className="workspace"><aside className="sidebar"><Link href="/dashboard" className="brand"><div className="brand-mark"><GraduationCap size={23} /></div><div>AcademicFlow<small>EXECUTION INTELLIGENCE</small></div></Link><div className="institution"><span className="institution-icon">AF</span><div>Academic workspace<small>{user.department || 'Institution-wide access'}</small></div></div><p className="nav-label">WORKSPACE</p><nav>{links.filter(([key]) => (!['review','unmatched'].includes(key) || ['ADMIN','COORDINATOR','HOD'].includes(user.role)) && (key !== 'plan-generator' || ['ADMIN','HOD','COORDINATOR'].includes(user.role))).map(([key, label, Icon]) => <Link key={key} href={`/${key}`} className={section === key ? 'active' : ''}><Icon size={18} />{label}{key === 'review' && analytics?.summary.needs_review ? <span className="nav-count">{analytics.summary.needs_review}</span> : null}</Link>)}</nav><div className="trust-card"><ShieldCheck size={20} /><strong>Human judgment matters</strong><p>AI-assisted — review when uncertain. Every decision retains its evidence.</p></div><div className="sidebar-footer"><span className="status-dot" /> Local MVP · {provider === 'demo' ? 'Offline demo provider' : 'OpenAI provider'}</div></aside>
     <div className="main-shell"><header className="topbar"><span>Workspace <span className="muted">/ {activityId ? 'Activity detail' : titles[section]?.[0]}</span></span><div className="header-right"><span className="role-pill">{user.role.replaceAll('_',' ')}</span><Bell size={17} aria-label="Notifications appear in the status area" /><span className="avatar">{user.name.slice(0,2).toUpperCase()}</span><button className="icon-button" aria-label="Sign out" onClick={async () => { try { await post('/auth/logout'); setUser(null); setAnalytics(null); setReports([]); setQueue([]); setAudit([]); setActivities([]); setDetail(null); setNotice(''); setPipeline([]); } catch(e) { setError((e as Error).message); } }}><LogOut size={17} /></button></div></header>
     <main className="content"><div className="page-heading"><div><div className="eyebrow">ACADEMIC INTELLIGENCE</div><h1>{activityId ? detail?.activity.activity_name || 'Activity details' : titles[section]?.[0]}</h1><p>{activityId ? 'Plan, execution evidence, and decision history in one place.' : titles[section]?.[1]}</p></div><div className="heading-actions"><button className="secondary" onClick={() => { setShowCallModal(true); startNewConversation(); setCallResult(null); }}><PhoneCall size={15} /> Simulate Call</button><button className="secondary" onClick={refresh} disabled={loading || busy}><RefreshCw size={15} /> Refresh</button>{section === 'dashboard' && submitter && <Link className="primary" href="/reports"><Upload size={16} /> Submit report</Link>}</div></div>
     {provider === 'demo' && <div className="demo-banner"><CircleHelp size={16} /> Offline demonstration mode: deterministic extraction and lexical vectors, not live semantic AI.</div>}
@@ -243,6 +258,24 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
       <section className="panel"><div className="panel-heading"><h2>Report history</h2><span>{reports.length} reports loaded</span></div>{!reports.length ? <Empty text="No reports yet. Submit the first faculty report above." /> : <div className="report-list">{reports.map(r => <details key={r.id}><summary><FileText size={18} /><strong>{r.report_id}</strong><span className="badge">{r.source_type}</span><span>{new Date(r.submitted_at).toLocaleString()}</span><span>{r.events.length} events</span></summary><div className="report-detail"><pre>{r.raw_content}</pre><div className="event-tags">{r.events.map(e => <span className="badge" key={e.id}>{e.disposition}</span>)}</div>{r.file_metadata && <pre>{JSON.stringify(r.file_metadata,null,2)}</pre>}{submitter && <button className="secondary" disabled={busy} onClick={() => resume(r.report_id)}>Process / retry safely</button>}</div></details>)}</div>}</section></>}
 
     {(section === 'review' || section === 'unmatched') && <>{!queue.length && !loading ? <Empty text={section === 'review' ? 'All caught up. No events need human review.' : 'No unmatched activities in your scope.'} /> : queue.map(item => <section className="panel review-card" key={item.event.id}><div className="panel-heading"><div><h2>{item.event.activity_description || 'Unspecified activity'}</h2><p>{item.report.report_id} · {item.event.event_date || 'Date not supplied'}</p></div><span className={`badge ${item.event.disposition.toLowerCase()}`}>{item.event.disposition}</span></div><div className="review-columns"><div><h3>01 · Original evidence</h3><blockquote>{item.event.source_excerpt || item.report.raw_content}</blockquote><small>Preserved source text. Never rewritten by matching.</small></div><div><h3>02 · Extracted event</h3><dl>{(['course','department','unit','class_section','faculty','event_date','status'] as const).map(key => <div key={key}><dt>{key.replaceAll('_',' ')}</dt><dd>{item.event[key] || 'Not provided'}</dd></div>)}</dl></div><div><h3>03 · Candidate activities</h3>{item.candidates.map(c => <CandidateCard key={c.id} candidate={c}>{reviewer && c.decision_type === 'PENDING' && <div className="actions"><button className="primary" disabled={busy} onClick={() => openResolution({ item, candidate: c, kind: 'approve' })}>Approve</button><button className="secondary" disabled={busy} onClick={() => openResolution({ item, candidate: c, kind: 'reject' })}>Reject</button></div>}</CandidateCard>)}</div></div>{reviewer && <div className="review-footer"><button className="secondary" onClick={() => openResolution({ item, kind: 'map' })}>Manually map activity</button>{section === 'unmatched' && [['EXTRA_ACTIVITY','Add as extra activity'],['OUTSIDE_ACADEMIC_SCOPE','Outside academic scope'],['REJECTED','Reject']].map(([classification,label]) => <button className="secondary" key={classification} onClick={() => openResolution({ item, kind: 'classify', classification })}>{label}</button>)}<small>AI-assisted — review when uncertain</small></div>}</section>)}</>}
+
+    {section === 'classrooms' && user && (
+      <ClassroomHub
+        user={user}
+        onOpenVoiceCall={() => { setShowCallModal(true); startNewConversation(); setCallResult(null); }}
+        onNotify={setNotice}
+        onError={setError}
+      />
+    )}
+
+    {section === 'plan-generator' && user && (
+      <PlanGenerator
+        user={user}
+        onPlanPublished={() => { refresh(); setNotice('Academic plan successfully published!'); }}
+        onNotify={setNotice}
+        onError={setError}
+      />
+    )}
 
     {activityId && detail && <><section className="panel detail-panel"><div className="panel-heading"><h2>{detail.activity.activity_id}</h2><span className={`badge ${detail.activity.status.toLowerCase()}`}>{detail.activity.status}</span></div><dl>{Object.entries(detail.activity).filter(([key]) => !['id','activity_id','is_demo'].includes(key)).map(([key,value]) => <div key={key}><dt>{key.replaceAll('_',' ')}</dt><dd>{String(value ?? 'Not supplied')}</dd></div>)}</dl></section><section className="panel"><div className="panel-heading"><h2>Linked execution evidence</h2></div>{detail.executions.length ? detail.executions.map(item => <div className="execution" key={item.event.id}><blockquote>{item.event.source_excerpt}</blockquote><p>{item.report.report_id} · {item.event.event_date || 'No source date'}</p>{item.candidates.filter(c => ['AUTO_LINKED','HUMAN_CONFIRMED','MANUALLY_MAPPED'].includes(c.decision_type)).map(c => <CandidateCard key={c.id} candidate={c} />)}</div>) : <Empty text="No confirmed executions yet." />}</section><AuditTimeline entries={detail.audit} /></>}
     {section === 'audit' && <AuditTimeline entries={audit} />}

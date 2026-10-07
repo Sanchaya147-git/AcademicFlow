@@ -97,6 +97,7 @@ class ActivityCreate(DTO):
     activity_type: str = Field(min_length=1, max_length=80)
     faculty: str | None = None
     class_section: str = Field(min_length=1, max_length=80)
+    classroom_id: UUID | None = None
     location: str | None = None
     level: int = Field(default=5, ge=1, le=6)
     planned_start: date
@@ -175,3 +176,37 @@ class AuditOut(DTO):
     previous_value: dict | None
     new_value: dict | None
     details: dict
+
+
+class ClassroomCreate(DTO):
+    name: str = Field(min_length=2, max_length=120)
+    department: str = Field(min_length=2, max_length=50, default="CSE")
+    academic_year: str = Field(min_length=4, max_length=20, default="2026-2027")
+
+
+class ClassroomJoin(DTO):
+    join_code: str = Field(min_length=3, max_length=16)
+    assigned_subject: str | None = None
+    assigned_section: str | None = None
+
+
+class ClassroomMemberOut(DTO):
+    id: UUID
+    teacher_id: UUID
+    teacher_name: str
+    teacher_email: str
+    assigned_subject: str | None
+    assigned_section: str | None
+    joined_at: datetime
+
+
+class ClassroomOut(DTO):
+    id: UUID
+    name: str
+    department: str
+    academic_year: str
+    join_code: str
+    hod_id: UUID | None
+    created_at: datetime
+    member_count: int = 0
+    activity_count: int = 0

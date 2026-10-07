@@ -58,6 +58,8 @@ class Activity(Identity, Base):
     embedding_model: Mapped[str | None]
     is_demo: Mapped[bool] = mapped_column(default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+    classroom_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("classrooms.id", ondelete="SET NULL"), index=True, nullable=True)
+    classroom: Mapped["Classroom | None"] = relationship(back_populates="activities")
     links: Mapped[list["ExecutionLink"]] = relationship(back_populates="activity")
 
 
@@ -161,3 +163,38 @@ class Audit(Identity, Base):
     previous_value: Mapped[dict | None] = mapped_column(JSON)
     new_value: Mapped[dict | None] = mapped_column(JSON)
     details: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+
+
+def generate_join_code(prefix: str = "AF") -> str:
+    """Generates a unique, readable join code e.g. CSE-7K2M."""
+    import secrets
+    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    suffix = "".join(secrets.choice(chars) for _ in range(4))
+    clean_prefix = (prefix.strip().upper()[:3] or "AF")
+    return f"{clean_prefix}-{suffix}"
+
+
+class Classroom(Identity, Base):
+    __tablename__ = "classrooms"
+    name: Mapped[str] = mapped_column(String(120))
+    department: Mapped[str] = mapped_column(String(50), default="CSE")
+    academic_year: Mapped[str] = mapped_column(String(20), default="2026-2027")
+    join_code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    hod_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+
+    hod: Mapped[User | None] = relationship(foreign_keys=[hod_id])
+    members: Mapped[list["ClassroomMember"]] = relationship(back_populates="classroom", cascade="all, delete-orphan")
+    activities: Mapped[list["Activity"]] = relationship(back_populates="classroom")
+
+
+class ClassroomMember(Identity, Base):
+    __tablename__ = "classroom_members"
+    __table_args__ = (UniqueConstraint("classroom_id", "teacher_id"),)
+    classroom_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("classrooms.id", ondelete="CASCADE"), index=True)
+    teacher_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    assigned_subject: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    assigned_section: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+    classroom: Mapped[Classroom] = relationship(back_populates="members")
+    teacher: Mapped[User] = relationship(foreign_keys=[teacher_id])

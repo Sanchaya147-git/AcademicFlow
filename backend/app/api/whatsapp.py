@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import urllib.request
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -271,7 +271,7 @@ def _get_public_base_url(request: Request) -> str:
     proto = request.headers.get("x-forwarded-proto") or "https"
     if host and "localhost" not in host and "127.0.0.1" not in host:
         return f"{proto}://{host}"
-    return os.getenv("TUNNEL_URL", "https://worship-wto-dividend-leslie.trycloudflare.com")
+    return os.getenv("TUNNEL_URL", "https://contribution-mathematical-revelation-framework.trycloudflare.com")
 
 
 @router.api_route("/voice/prompt", methods=["GET", "POST"])
@@ -306,7 +306,7 @@ async def voice_prompt(request: Request):
 @router.api_route("/voice/conversation", methods=["GET", "POST"])
 @router.api_route("/voice/conversation/", methods=["GET", "POST"])
 @router.api_route(r"/voice/conversation\\", methods=["GET", "POST"])
-async def voice_conversation(request: Request, db: Session = Depends(get_db)):
+async def voice_conversation(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Handles multi-turn conversational voice interaction with Claude, asking clarifying questions."""
     base_url = _get_public_base_url(request)
     action_url = f"{base_url}/api/webhook/voice/conversation"
@@ -344,7 +344,7 @@ async def voice_conversation(request: Request, db: Session = Depends(get_db)):
     ensure_master_excel(activities)
 
     # Process turn with Claude conversational agent
-    turn_res = process_voice_turn(call_sid, speech_text, db)
+    turn_res = process_voice_turn(call_sid, speech_text, db, background_tasks=background_tasks)
     tamil_reply = turn_res["speech_reply_tamil"]
     english_reply = turn_res["speech_reply_english"]
     is_complete = turn_res["is_complete"]

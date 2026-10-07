@@ -56,6 +56,8 @@ def test_tables_seed_constraints(setup, monkeypatch):
         "activity_matches",
         "execution_activity_links",
         "audit_logs",
+        "classrooms",
+        "classroom_members",
     }
     monkeypatch.setattr(settings, "SEED_ADMIN_PASSWORD", "safe-test-password")
     with Session(engine) as db:

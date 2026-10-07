@@ -26,6 +26,21 @@ app.include_router(router)
 app.include_router(whatsapp_router)
 
 
+@app.on_event("startup")
+def init_db_tables():
+    from app.db import Base, engine
+    from sqlalchemy import text
+    try:
+        Base.metadata.create_all(engine())
+        with engine().connect() as conn:
+            conn.execute(text("ALTER TABLE academic_activities ADD COLUMN IF NOT EXISTS classroom_id UUID REFERENCES classrooms(id) ON DELETE SET NULL;"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_academic_activities_classroom_id ON academic_activities(classroom_id);"))
+            conn.commit()
+        logger.info("Database schema initialized with all models and classroom_id column.")
+    except Exception as exc:
+        logger.warning("Could not auto-create tables on startup: %s", exc)
+
+
 @app.middleware("http")
 async def request_log(request: Request, call_next):
     raw_path = request.scope.get("path", "")

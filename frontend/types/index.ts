@@ -22,3 +22,27 @@ export type Analytics = {
   schedule_variance: { id: string; name: string; variance_days: number | null; planned_end: string; actual_end: string | null }[];
   historical_activity: { activity_id: string; name: string; actual_sessions: number; planned_sessions: number | null; sample_size: number; historical_average: number | null; note: string }[];
 };
+
+export type ClassroomMember = {
+  id: string;
+  classroom_id: string;
+  teacher_id: string;
+  assigned_subject: string | null;
+  assigned_section: string | null;
+  joined_at: string;
+  teacher_name?: string;
+  teacher_email?: string;
+};
+
+export type Classroom = {
+  id: string;
+  name: string;
+  department: string;
+  academic_year: string;
+  join_code: string;
+  hod_id: string | null;
+  created_at: string;
+  members_count: number;
+  activities_count: number;
+  members?: ClassroomMember[];
+};

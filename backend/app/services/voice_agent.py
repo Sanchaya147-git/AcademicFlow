@@ -58,7 +58,7 @@ def call_claude_agent(messages: List[Dict[str, str]]) -> Dict[str, Any]:
 
     payload = {
         "model": settings.CLAUDE_MODEL,
-        "max_tokens": 800,
+        "max_tokens": 450,
         "system": VOICE_CONVERSATION_SYSTEM,
         "messages": messages,
     }
@@ -71,18 +71,62 @@ def call_claude_agent(messages: List[Dict[str, str]]) -> Dict[str, Any]:
             "content-type": "application/json",
         },
     )
-    with urllib.request.urlopen(req, timeout=20) as resp:
+    with urllib.request.urlopen(req, timeout=10) as resp:
         data = json.loads(resp.read().decode("utf-8"))
         raw_text = data["content"][0]["text"].strip()
         if "```json" in raw_text:
             raw_text = raw_text.split("```json")[1].split("```")[0].strip()
         elif "```" in raw_text:
             raw_text = raw_text.split("```")[1].split("```")[0].strip()
-        return json.loads(raw_text)
+        try:
+            return json.loads(raw_text)
+        except Exception as exc:
+            import re
+            logger.warning("JSON parse failed, attempting regex fallback on: %s", raw_text)
+            t_match = re.search(r'"speech_reply_tamil":\s*"([^"]+)"', raw_text)
+            e_match = re.search(r'"speech_reply_english":\s*"([^"]+)"', raw_text)
+            is_comp = '"is_complete": true' in raw_text.lower() or '"is_complete":true' in raw_text.lower()
+            return {
+                "speech_reply_tamil": t_match.group(1) if t_match else "நன்றி புரொபசர்.",
+                "speech_reply_english": e_match.group(1) if e_match else "Thank you Professor.",
+                "is_complete": is_comp,
+            }
 
 
-def process_voice_turn(session_id: str, user_speech: str, db: Session, user: Optional[User] = None) -> Dict[str, Any]:
-    """Processes a conversational voice turn with Claude, handling clarifications and final matching."""
+def finalize_session_report(full_raw_text: str, teacher_id: Optional[str] = None):
+    """Executes the extraction, matching, and Excel sync pipeline in background."""
+    from app.db import engine
+    from sqlalchemy.orm import Session
+    try:
+        with Session(engine()) as db:
+            teacher = db.get(User, teacher_id) if teacher_id else None
+            if not teacher:
+                teacher = db.scalar(select(User).where(User.role == "FACULTY", User.department == "CSE"))
+            if not teacher:
+                teacher = db.scalar(select(User).where(User.role == "FACULTY"))
+
+            report = Report(source_type="VOICE_TRANSCRIPT", raw_content=full_raw_text, submitted_by=teacher.id if teacher else None)
+            db.add(report)
+            db.flush()
+
+            extractor = get_extractor()
+            extracted_events = extract_report(db, report, teacher, extractor)
+
+            embeddings_provider = get_embeddings()
+            for event in extracted_events:
+                matches = run_matching(db, event, teacher, embeddings_provider)
+                decision = matches[0].decision if matches else event.disposition
+                act = matches[0].activity if matches else None
+                if decision == "AUTO_LINK" and act:
+                    sync_activity_to_excel(act)
+            db.commit()
+            logger.info("Background voice report successfully processed: %s", full_raw_text)
+    except Exception as exc:
+        logger.error("Error finalizing background voice report: %s", exc)
+
+
+def process_voice_turn(session_id: str, user_speech: str, db: Session, user: Optional[User] = None, background_tasks: Any = None) -> Dict[str, Any]:
+    """Processes a conversational voice turn with Claude, handling clarifications and fast finalization."""
     session = ACTIVE_SESSIONS.setdefault(session_id, {
         "turns": [],
         "accumulated_transcript": [],
@@ -114,7 +158,6 @@ def process_voice_turn(session_id: str, user_speech: str, db: Session, user: Opt
     tamil_reply = agent_resp.get("speech_reply_tamil", "நன்றி புரொபசர்.")
     english_reply = agent_resp.get("speech_reply_english", "Thank you Professor.")
     is_complete = agent_resp.get("is_complete", False)
-    extracted_data = agent_resp.get("extracted_event")
 
     # Record assistant reply in turn history
     assistant_record = f"{english_reply} ({tamil_reply})"
@@ -129,47 +172,17 @@ def process_voice_turn(session_id: str, user_speech: str, db: Session, user: Opt
         session["is_complete"] = True
         full_raw_text = " | ".join(session["accumulated_transcript"])
         
-        # Attribute report to teacher
         teacher = user or db.scalar(select(User).where(User.role == "FACULTY", User.department == "CSE"))
         if not teacher:
             teacher = db.scalar(select(User).where(User.role == "FACULTY"))
+        teacher_id = str(teacher.id) if teacher else None
 
-        # Save Report
-        report = Report(source_type="VOICE_TRANSCRIPT", raw_content=full_raw_text, submitted_by=teacher.id if teacher else None)
-        db.add(report)
-        db.flush()
-
-        # Extract Event(s) using standard pipeline
-        extractor = get_extractor()
-        extracted_events = extract_report(db, report, teacher, extractor)
-
-        # Match each event against academic plan
-        embeddings_provider = get_embeddings()
-        outcomes = []
-        for event in extracted_events:
-            matches = run_matching(db, event, teacher, embeddings_provider)
-            decision = matches[0].decision if matches else event.disposition
-            confidence = round(matches[0].final_confidence * 100, 1) if matches else 60.0
-            act = matches[0].activity if matches else None
-
-            if decision == "AUTO_LINK" and act:
-                sync_activity_to_excel(act)
-
-            outcomes.append({
-                "report_id": str(report.id),
-                "event_id": str(event.id),
-                "topic": event.activity_description,
-                "department": event.department,
-                "section": event.class_section,
-                "status": event.status,
-                "decision": decision,
-                "confidence": confidence,
-                "matched_activity": act.activity_name if act else None,
-                "activity_id": act.activity_id if act else None,
-            })
-
-        db.commit()
-        match_result = outcomes[0] if outcomes else None
+        if background_tasks:
+            # Dispatch to background task so TwiML returns to Twilio in under 1.5s!
+            background_tasks.add_task(finalize_session_report, full_raw_text, teacher_id)
+        else:
+            # Inline processing for web simulation
+            finalize_session_report(full_raw_text, teacher_id)
 
     return {
         "session_id": session_id,

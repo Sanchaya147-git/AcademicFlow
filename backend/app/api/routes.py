@@ -1,9 +1,9 @@
 import time
 from collections import defaultdict, deque
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,8 +13,10 @@ from app.db import get_db
 from app.extraction.extractor import get_extractor
 from app.extraction.service import extract_report
 from app.matching.embedding_service import activity_text, get_embeddings
+from app.services.weekly_excel import generate_classroom_excel
+from app.services.plan_generator import generate_plan_from_prompt_or_file
 from app.matching.service import run_matching
-from app.models import Activity, Audit, Event, ExecutionLink, Match, Report, User
+from app.models import Activity, Audit, Classroom, ClassroomMember, Event, ExecutionLink, Match, Report, User, generate_join_code
 from app.schemas import (
     ActivityCreate,
     ActivityOut,
@@ -22,6 +24,10 @@ from app.schemas import (
     AuditOut,
     CandidateOut,
     Classification,
+    ClassroomCreate,
+    ClassroomJoin,
+    ClassroomMemberOut,
+    ClassroomOut,
     EventOut,
     Login,
     ManualMap,
@@ -395,3 +401,423 @@ def audit_event(event_id: UUID, db: Session = Db, user: User = Auth):
         .where((Audit.event_id == event_id) | ((Audit.report_id == event.report_id) & Audit.event_id.is_(None)))
         .order_by(Audit.timestamp)
     ).all()
+
+
+# --- Classroom & Collaboration Hub Endpoints ---
+
+
+@router.post("/classrooms", response_model=ClassroomOut, status_code=201)
+def create_classroom(payload: ClassroomCreate, db: Session = Db, user: User = Auth):
+    """HOD or Admin creates a new Classroom with an auto-generated unique join code."""
+    require(user, "HOD", "ADMIN")
+    
+    # Generate unique join code
+    code = generate_join_code(payload.department)
+    while db.scalar(select(Classroom).where(Classroom.join_code == code)):
+        code = generate_join_code(payload.department)
+
+    classroom = Classroom(
+        name=payload.name,
+        department=payload.department,
+        academic_year=payload.academic_year,
+        join_code=code,
+        hod_id=user.id,
+    )
+    db.add(classroom)
+    db.commit()
+    db.refresh(classroom)
+
+    # Automatically link existing department activities if unlinked
+    unlinked_acts = db.scalars(
+        select(Activity).where(
+            Activity.department == payload.department,
+            Activity.classroom_id.is_(None),
+        )
+    ).all()
+    for act in unlinked_acts:
+        act.classroom_id = classroom.id
+    if unlinked_acts:
+        db.commit()
+
+    return ClassroomOut(
+        id=classroom.id,
+        name=classroom.name,
+        department=classroom.department,
+        academic_year=classroom.academic_year,
+        join_code=classroom.join_code,
+        hod_id=classroom.hod_id,
+        created_at=classroom.created_at,
+        member_count=0,
+        activity_count=len(unlinked_acts),
+    )
+
+
+@router.get("/classrooms", response_model=list[ClassroomOut])
+def list_classrooms(db: Session = Db, user: User = Auth):
+    """Lists classrooms accessible to the current user (created by HOD or joined by teacher)."""
+    if user.role in {"HOD", "ADMIN"}:
+        stmt = select(Classroom)
+        if user.role == "HOD":
+            stmt = stmt.where(Classroom.hod_id == user.id)
+        classrooms = db.scalars(stmt.order_by(Classroom.created_at.desc())).all()
+    else:
+        # Faculty sees classrooms they have enrolled in
+        joined_ids = db.scalars(
+            select(ClassroomMember.classroom_id).where(ClassroomMember.teacher_id == user.id)
+        ).all()
+        classrooms = db.scalars(
+            select(Classroom).where(Classroom.id.in_(joined_ids)).order_by(Classroom.created_at.desc())
+        ).all()
+
+    result = []
+    for c in classrooms:
+        m_count = db.scalar(select(ClassroomMember).where(ClassroomMember.classroom_id == c.id))
+        member_count = len(c.members)
+        activity_count = len(c.activities)
+        result.append(
+            ClassroomOut(
+                id=c.id,
+                name=c.name,
+                department=c.department,
+                academic_year=c.academic_year,
+                join_code=c.join_code,
+                hod_id=c.hod_id,
+                created_at=c.created_at,
+                member_count=member_count,
+                activity_count=activity_count,
+            )
+        )
+    return result
+
+
+@router.get("/classrooms/my-schedule")
+def my_schedule(db: Session = Db, user: User = Auth):
+    """Returns the teacher's personalized academic plan across all joined classrooms."""
+    joined_classroom_ids = db.scalars(
+        select(ClassroomMember.classroom_id).where(ClassroomMember.teacher_id == user.id)
+    ).all()
+
+    # Find activities in joined classrooms or matching user name/department
+    query = select(Activity).where(
+        (Activity.classroom_id.in_(joined_classroom_ids))
+        | (Activity.department == user.department)
+    ).order_by(Activity.planned_start)
+
+    activities = db.scalars(query).all()
+    return [
+        {
+            "id": str(a.id),
+            "activity_id": a.activity_id,
+            "course": a.course,
+            "unit": a.unit,
+            "activity_name": a.activity_name,
+            "class_section": a.class_section,
+            "planned_start": str(a.planned_start),
+            "planned_end": str(a.planned_end),
+            "actual_end": str(a.actual_end) if a.actual_end else None,
+            "status": a.status,
+            "completion_percentage": a.completion_percentage,
+        }
+        for a in activities
+    ]
+
+
+@router.get("/classrooms/{classroom_id}")
+def get_classroom_details(classroom_id: UUID, db: Session = Db, user: User = Auth):
+    """Gets detailed classroom view including enrolled members and curriculum plan."""
+    c = db.get(Classroom, classroom_id)
+    if not c:
+        raise HTTPException(404, "Classroom not found")
+
+    members = [
+        {
+            "id": str(m.id),
+            "teacher_id": str(m.teacher_id),
+            "teacher_name": m.teacher.name,
+            "teacher_email": m.teacher.email,
+            "assigned_subject": m.assigned_subject,
+            "assigned_section": m.assigned_section,
+            "joined_at": m.joined_at.isoformat(),
+        }
+        for m in c.members
+    ]
+
+    activities = [
+        {
+            "id": str(a.id),
+            "activity_id": a.activity_id,
+            "course": a.course,
+            "unit": a.unit,
+            "activity_name": a.activity_name,
+            "class_section": a.class_section,
+            "faculty": a.faculty,
+            "status": a.status,
+            "completion_percentage": a.completion_percentage,
+            "planned_start": str(a.planned_start),
+            "planned_end": str(a.planned_end),
+            "actual_end": str(a.actual_end) if a.actual_end else None,
+        }
+        for a in c.activities
+    ]
+
+    return {
+        "id": str(c.id),
+        "name": c.name,
+        "department": c.department,
+        "academic_year": c.academic_year,
+        "join_code": c.join_code,
+        "created_at": c.created_at.isoformat(),
+        "members": members,
+        "activities": activities,
+    }
+
+
+@router.post("/classrooms/join")
+def join_classroom(payload: ClassroomJoin, db: Session = Db, user: User = Auth):
+    """Allows a teacher to enroll in a classroom using the HOD's join code."""
+    clean_code = payload.join_code.strip().upper()
+    classroom = db.scalar(select(Classroom).where(Classroom.join_code == clean_code))
+    if not classroom:
+        raise HTTPException(404, f"Invalid join code '{clean_code}'. Please verify with your HOD.")
+
+    # Check if already a member
+    existing = db.scalar(
+        select(ClassroomMember).where(
+            ClassroomMember.classroom_id == classroom.id,
+            ClassroomMember.teacher_id == user.id,
+        )
+    )
+    if existing:
+        raise HTTPException(400, f"You have already joined '{classroom.name}'.")
+
+    member = ClassroomMember(
+        classroom_id=classroom.id,
+        teacher_id=user.id,
+        assigned_subject=payload.assigned_subject,
+        assigned_section=payload.assigned_section,
+    )
+    db.add(member)
+    db.commit()
+
+    return {
+        "status": "ok",
+        "message": f"Successfully joined {classroom.name}!",
+        "classroom_id": str(classroom.id),
+        "classroom_name": classroom.name,
+        "department": classroom.department,
+    }
+
+
+@router.get("/classrooms/{classroom_id}/daily-digest")
+def get_classroom_daily_digest(classroom_id: UUID, db: Session = Db, user: User = Auth):
+    """Provides daily compliance digest for all faculty enrolled in the classroom."""
+    classroom = db.get(Classroom, classroom_id)
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+
+    today = date.today()
+    members = db.scalars(
+        select(ClassroomMember).where(ClassroomMember.classroom_id == classroom.id)
+    ).all()
+
+    statuses = []
+    reported_count = 0
+
+    for m in members:
+        # Check if teacher reported today
+        reports = db.scalars(
+            select(Report).where(
+                Report.submitted_by == m.teacher_id,
+                Report.submitted_at >= datetime.combine(today, datetime.min.time()),
+            ).order_by(Report.submitted_at.desc())
+        ).all()
+
+        has_reported = len(reports) > 0
+        if has_reported:
+            reported_count += 1
+            latest_rep = reports[0]
+            latest_event = latest_rep.events[0] if latest_rep.events else None
+            rep_info = {
+                "reported": True,
+                "report_id": latest_rep.report_id,
+                "source_type": latest_rep.source_type,
+                "submitted_at": latest_rep.submitted_at.isoformat(),
+                "topic": latest_event.activity_description if latest_event else latest_rep.raw_content[:80],
+                "status": latest_event.status if latest_event else "REPORTED",
+            }
+        else:
+            rep_info = {
+                "reported": False,
+                "report_id": None,
+                "source_type": None,
+                "submitted_at": None,
+                "topic": None,
+                "status": "PENDING",
+            }
+
+        statuses.append({
+            "teacher_id": str(m.teacher_id),
+            "teacher_name": m.teacher.name if m.teacher else "Faculty",
+            "teacher_email": m.teacher.email if m.teacher else "—",
+            "assigned_subject": m.assigned_subject or "General",
+            "assigned_section": m.assigned_section or "All Sections",
+            "compliance": rep_info,
+        })
+
+    return {
+        "classroom_id": str(classroom.id),
+        "classroom_name": classroom.name,
+        "date": today.isoformat(),
+        "total_faculty": len(members),
+        "reported_today": reported_count,
+        "pending_today": len(members) - reported_count,
+        "faculty_statuses": statuses,
+    }
+
+
+@router.get("/classrooms/{classroom_id}/excel")
+def download_classroom_excel(classroom_id: UUID, db: Session = Db, user: User = Auth):
+    """Exports weekly master academic plan Excel workbook with formatted styling."""
+    classroom = db.get(Classroom, classroom_id)
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+
+    activities = db.scalars(
+        select(Activity).where(Activity.classroom_id == classroom.id).order_by(Activity.planned_start, Activity.activity_id)
+    ).all()
+    # If no activities explicitly tied to classroom_id yet, fallback to department activities
+    if not activities:
+        activities = db.scalars(
+            select(Activity).where(Activity.department == classroom.department).order_by(Activity.planned_start, Activity.activity_id)
+        ).all()
+
+    members = db.scalars(
+        select(ClassroomMember).where(ClassroomMember.classroom_id == classroom.id)
+    ).all()
+
+    excel_bytes = generate_classroom_excel(classroom, activities, members)
+    filename = f"master_academic_plan_{classroom.join_code}.xlsx"
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/plan/extract-or-prompt")
+async def extract_or_prompt_plan(
+    prompt: str | None = Form(None),
+    department: str = Form("CSE"),
+    course: str = Form("Data Structures"),
+    class_section: str = Form("CSE-C"),
+    faculty: str | None = Form(None),
+    start_date: date | None = Form(None),
+    classroom_id: UUID | None = Form(None),
+    file: UploadFile | None = File(None),
+    user: User = Auth,
+):
+    """HOD generates or extracts an academic plan from a timetable image/PDF or natural prompt."""
+    file_bytes = None
+    filename = None
+    content_type = None
+    if file:
+        file_bytes = await file.read()
+        filename = file.filename
+        content_type = file.content_type
+
+    activities = generate_plan_from_prompt_or_file(
+        prompt=prompt,
+        file_bytes=file_bytes,
+        filename=filename,
+        content_type=content_type,
+        department=department,
+        course=course,
+        class_section=class_section,
+        faculty=faculty,
+        start_date=start_date,
+    )
+
+    if classroom_id:
+        for a in activities:
+            a["classroom_id"] = str(classroom_id)
+
+    return {
+        "status": "success",
+        "total_activities": len(activities),
+        "classroom_id": str(classroom_id) if classroom_id else None,
+        "activities": activities,
+    }
+
+
+@router.post("/plan/publish", status_code=201)
+def publish_plan(
+    payload: dict,
+    db: Session = Db,
+    user: User = Auth,
+    provider=Depends(get_embeddings),
+):
+    """Publishes reviewed plan activities to the database, linking to a classroom."""
+    activities_data = payload.get("activities", [])
+    classroom_id = payload.get("classroom_id")
+    if not activities_data:
+        raise HTTPException(400, "No activities to publish")
+
+    created = []
+    for item in activities_data:
+        act_id = item.get("activity_id")
+        existing = db.scalar(select(Activity).where(Activity.activity_id == act_id))
+        if existing:
+            act_id = f"{act_id}-{int(time.time() * 1000) % 10000}"
+
+        p_start = item.get("planned_start")
+        if isinstance(p_start, str):
+            try:
+                p_start = date.fromisoformat(p_start[:10])
+            except ValueError:
+                p_start = date.today()
+        elif not isinstance(p_start, date):
+            p_start = date.today()
+
+        p_end = item.get("planned_end")
+        if isinstance(p_end, str):
+            try:
+                p_end = date.fromisoformat(p_end[:10])
+            except ValueError:
+                p_end = p_start
+        elif not isinstance(p_end, date):
+            p_end = p_start
+
+        act = Activity(
+            activity_id=act_id,
+            semester=item.get("semester", "2026 Odd Semester"),
+            department=item.get("department", "CSE"),
+            course=item.get("course", "Data Structures"),
+            unit=item.get("unit", "Unit I"),
+            activity_name=item.get("activity_name", "Lecture"),
+            activity_type=item.get("activity_type", "Lecture"),
+            faculty=item.get("faculty"),
+            class_section=item.get("class_section", "CSE-C"),
+            location=item.get("location"),
+            level=item.get("level", 5),
+            planned_start=p_start,
+            planned_end=p_end,
+            classroom_id=UUID(classroom_id) if classroom_id else None,
+            status="PLANNED",
+            completion_percentage=0.0,
+            is_demo=False,
+        )
+        act.embedding = provider.embed(activity_text(act))
+        act.embedding_model = provider.model
+        db.add(act)
+        created.append(act)
+
+    db.commit()
+    record(db, user, "PLAN_PUBLISHED", new={"count": len(created), "classroom_id": str(classroom_id) if classroom_id else None})
+    return {
+        "status": "ok",
+        "published_count": len(created),
+        "classroom_id": classroom_id,
+    }
+
+
+
