@@ -22,7 +22,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: postgresql+psycopg://${DATABASE_USER:-academicflow}:${DATABASE_PASSWORD:-academicflow123}@db:5432/${DATABASE_NAME:-academicflow}
+      DATABASE_URL: postgresql://${DATABASE_USER:-academicflow}:${DATABASE_PASSWORD:-academicflow123}@db:5432/${DATABASE_NAME:-academicflow}
       ENVIRONMENT: production
       APP_SECRET: ${APP_SECRET}
       SECRET_KEY: ${SECRET_KEY}
