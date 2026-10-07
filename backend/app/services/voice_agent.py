@@ -80,15 +80,27 @@ def call_claude_agent(messages: List[Dict[str, str]]) -> Dict[str, Any]:
             raw_text = raw_text.split("```")[1].split("```")[0].strip()
         try:
             return json.loads(raw_text)
-        except Exception as exc:
+        except Exception:
             import re
-            logger.warning("JSON parse failed, attempting regex fallback on: %s", raw_text)
+            logger.warning("JSON parse failed, attempting intelligent fallback on: %s", raw_text)
             t_match = re.search(r'"speech_reply_tamil":\s*"([^"]+)"', raw_text)
             e_match = re.search(r'"speech_reply_english":\s*"([^"]+)"', raw_text)
             is_comp = '"is_complete": true' in raw_text.lower() or '"is_complete":true' in raw_text.lower()
+            if e_match:
+                eng_text = e_match.group(1)
+                tam_text = t_match.group(1) if t_match else "நன்றி புரொபசர்."
+            else:
+                # Handle when Claude returns plain text like "English question? (Tamil translation)"
+                if "(" in raw_text and ")" in raw_text:
+                    parts = raw_text.split("(", 1)
+                    eng_text = parts[0].strip()
+                    tam_text = parts[1].split(")", 1)[0].strip()
+                else:
+                    eng_text = raw_text.strip()
+                    tam_text = "நன்றி புரொபசர்."
             return {
-                "speech_reply_tamil": t_match.group(1) if t_match else "நன்றி புரொபசர்.",
-                "speech_reply_english": e_match.group(1) if e_match else "Thank you Professor.",
+                "speech_reply_tamil": tam_text,
+                "speech_reply_english": eng_text,
                 "is_complete": is_comp,
             }
 
@@ -159,9 +171,15 @@ def process_voice_turn(session_id: str, user_speech: str, db: Session, user: Opt
     english_reply = agent_resp.get("speech_reply_english", "Thank you Professor.")
     is_complete = agent_resp.get("is_complete", False)
 
-    # Record assistant reply in turn history
-    assistant_record = f"{english_reply} ({tamil_reply})"
-    session["turns"].append({"role": "assistant", "content": assistant_record})
+    # Record assistant reply in turn history as JSON to preserve Claude's structured response pattern
+    session["turns"].append({
+        "role": "assistant",
+        "content": json.dumps({
+            "speech_reply_english": english_reply,
+            "speech_reply_tamil": tamil_reply,
+            "is_complete": is_complete,
+        })
+    })
 
     # If turn count reaches 6, force complete to avoid endless loops
     if session["turn_count"] >= 6:

@@ -176,4 +176,6 @@ own validation, including browser tests, production build and PostgreSQL concurr
     - Verified voice pipeline (`/api/webhook/voice/prompt`, multi-turn `/api/webhook/voice/conversation`, and `/api/webhook/voice/chat`) delivering dynamic bilingual English/Tamil prompts, intelligent missing-field clarifications, and 200 OK session finalization.
     - Updated matching decision logic in `matching/service.py`: the highest confidence candidate automatically auto-approves (`AUTO_LINKED`), updating syllabus and syncing to master Excel, while remaining lower candidates are queued as alternative candidates for review.
     - Resolved voice call cut-off by extending Twilio `<Gather>`: increased `timeout` to 15s, replaced `speechTimeout="auto"` with `speechTimeout="5"` (5 seconds silence before end-of-speech), added `maxSpeechTime="60"`, and enabled `speechModel="experimental_conversations"`.
+    - Tuned voice call pause latency: reduced `speechTimeout` to 2 seconds and `timeout` to 10 seconds across all TwiML `<Gather>` blocks for rapid conversational turnaround.
+    - Preserved multi-turn voice context: assistant turn history formatted as JSON in `session["turns"]` to preserve Claude's structured response pattern, with intelligent fallback parsing to ensure follow-up clarifying questions are always spoken to the caller.
 
