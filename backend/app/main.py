@@ -31,6 +31,9 @@ def init_db_tables():
     from app.db import Base, engine
     from sqlalchemy import text
     try:
+        with engine().connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            conn.commit()
         Base.metadata.create_all(engine())
         with engine().connect() as conn:
             conn.execute(text("ALTER TABLE academic_activities ADD COLUMN IF NOT EXISTS classroom_id UUID REFERENCES classrooms(id) ON DELETE SET NULL;"))
