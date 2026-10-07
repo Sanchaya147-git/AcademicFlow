@@ -1,4 +1,4 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL !== undefined ? process.env.NEXT_PUBLIC_API_URL : (typeof window !== 'undefined' ? '' : 'http://localhost:8000');
+export const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}/api${path}`, {
     ...options, credentials: 'include',

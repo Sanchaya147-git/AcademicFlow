@@ -33,8 +33,8 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_WHATSAPP_NUMBER: ${TWILIO_WHATSAPP_NUMBER}
       TEACHER_PHONE: ${TEACHER_PHONE}
-      TUNNEL_URL: https://academicflow.duckdns.org
-      CORS_ORIGINS: '["https://academicflow.duckdns.org", "http://localhost:3000"]'
+      TUNNEL_URL: https://academicflowz.duckdns.org
+      CORS_ORIGINS: '["https://academicflowz.duckdns.org", "http://localhost:3000"]'
     depends_on:
       db:
         condition: service_healthy
@@ -46,7 +46,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://academicflow.duckdns.org
+        NEXT_PUBLIC_API_URL: https://academicflowz.duckdns.org
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"

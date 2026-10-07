@@ -50,7 +50,8 @@ class Settings(BaseSettings):
 
     @property
     def CORS_ORIGINS(self):
-        return [self.FRONTEND_URL]
+        origins = [self.FRONTEND_URL, "https://academicflowz.duckdns.org", "http://academicflowz.duckdns.org", "http://localhost:3000"]
+        return list(set(origins))
 
 
 settings = Settings()
