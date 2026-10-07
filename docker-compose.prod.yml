@@ -36,7 +36,7 @@ services:
       FRONTEND_URL: https://academicflowz.duckdns.org
       TUNNEL_URL: https://academicflowz.duckdns.org
       AI_PROVIDER: ${AI_PROVIDER:-claude}
-      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-3-5-haiku-20241022}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-haiku-4-5-20251001}
       CORS_ORIGINS: '["https://academicflowz.duckdns.org", "http://localhost:3000"]'
     depends_on:
       db:
