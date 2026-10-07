@@ -55,7 +55,8 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     if not raw:
         raise HTTPException(401, "Authentication required")
     if not bearer and request.method not in {"GET", "HEAD", "OPTIONS"}:
-        if request.headers.get("origin") != settings.FRONTEND_URL:
+        origin = request.headers.get("origin")
+        if origin and origin != settings.FRONTEND_URL and origin not in settings.CORS_ORIGINS:
             raise HTTPException(403, "Invalid request origin")
     try:
         payload = jwt.decode(raw, secret(), algorithms=["HS256"], issuer="academicflow", audience="academicflow")

@@ -74,7 +74,7 @@ def health():
 @router.post("/auth/login")
 def login(body: Login, request: Request, response: Response, db: Session = Db):
     origin = request.headers.get("origin")
-    if origin and origin != settings.FRONTEND_URL:
+    if origin and origin != settings.FRONTEND_URL and origin not in settings.CORS_ORIGINS:
         raise HTTPException(403, "Invalid origin")
     key = request.client.host if request.client else "local"
     attempts = login_attempts[key]
