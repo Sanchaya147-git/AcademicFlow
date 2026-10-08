@@ -1,5 +1,6 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
+import './motion.css';
 import { AuthProvider } from '@/components/auth-provider';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });

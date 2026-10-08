@@ -4,7 +4,9 @@ import Link from 'next/link';
 import {
   BookOpen, FileText, CheckSquare, TrendingUp,
   Upload, ArrowRight, Clock, Sparkles,
-  CalendarDays, Activity, ChevronRight, Star
+  CalendarDays, Activity, ChevronRight, Star,
+  Link2, SearchCheck, CircleHelp, CheckCircle2, AlarmClock, ShieldCheck,
+  type LucideIcon
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Analytics } from '@/types';
@@ -13,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Charts } from '@/components/analytics-charts';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CountUp, Bar } from '@/components/motion';
 
 // ─── Metric card data ─────────────────────────────────────────────────────────
 const STATIC_METRICS = [
@@ -52,6 +56,21 @@ const ACCENT_STYLES: Record<string, { bg: string; icon: string; bar: string }> =
   pink:   { bg: 'bg-accent-pink',   icon: 'text-pink-500',   bar: 'bg-pink-400' },
   cyan:   { bg: 'bg-accent-cyan',   icon: 'text-cyan-500',   bar: 'bg-cyan-400' },
 };
+
+const metricIcons: Record<string, [LucideIcon, string]> = {
+  reports_today: [FileText, ''],
+  auto_linked: [Link2, 'success'],
+  needs_review: [SearchCheck, 'warning'],
+  unmatched: [CircleHelp, 'danger'],
+  activities_completed: [CheckCircle2, 'success'],
+  delayed_activities: [AlarmClock, 'warning'],
+  schedule_health: [Activity, ''],
+};
+
+function MetricIcon({ name }: { name: string }) {
+  const [Icon, tone] = metricIcons[name] ?? [Clock, ''];
+  return <span className={`icon-chip${tone ? ` ${tone}` : ''}`} aria-hidden><Icon size={16} /></span>;
+}
 
 // ─── Upcoming deadlines (static demo — replace with real API when available) ──
 const UPCOMING_DEADLINES = [
@@ -155,22 +174,49 @@ export default function DashboardPage() {
       )}
 
       {/* ── Metric cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATIC_METRICS.map(m => {
-          const s = ACCENT_STYLES[m.accent];
-          return (
-            <Card key={m.label} className="border-border-subtle shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-5">
-                <div className={`inline-flex p-2.5 rounded-xl ${s.bg} mb-4`}>
-                  <m.icon size={18} className={s.icon} />
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {analytics?.summary ? (
+          Object.entries(analytics.summary).map(([key, value], index) => (
+            <Card 
+              key={key} 
+              className={`border-border-subtle shadow-2xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-default enter-up ${
+                key === 'auto_linked' ? 'border-b-2 border-b-emerald-500' : key === 'needs_review' ? 'border-b-2 border-b-amber-500' : key === 'unmatched' ? 'border-b-2 border-b-rose-500' : ''
+              }`}
+              style={{ '--i': index } as React.CSSProperties}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted truncate mr-1">
+                    {key.replaceAll('_', ' ')}
+                  </span>
+                  <MetricIcon name={key} />
                 </div>
-                <div className="text-2xl font-extrabold text-text-primary tracking-tight">{m.value}</div>
-                <div className="text-xs font-semibold text-text-primary mt-0.5">{m.label}</div>
-                <div className="text-[11px] text-text-muted mt-0.5">{m.sub}</div>
+                <div className="text-2xl font-extrabold text-text-primary tracking-tight">
+                  <CountUp id={key} value={value} suffix={key === 'schedule_health' ? '%' : ''} />
+                </div>
+                <div className="text-[10px] text-text-muted mt-1 truncate">
+                  {key === 'schedule_health' ? 'Health metric' : 'Institutional records'}
+                </div>
               </CardContent>
             </Card>
-          );
-        })}
+          ))
+        ) : (
+          STATIC_METRICS.map(m => {
+            const s = ACCENT_STYLES[m.accent];
+            return (
+              <Card key={m.label} className="border-border-subtle shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-default">
+                <CardContent className="p-4">
+                  <div className={`inline-flex p-2 rounded-xl ${s.bg} mb-3 group-hover:scale-110 transition-transform duration-200`}>
+                    <m.icon size={16} className={s.icon} />
+                  </div>
+                  <div className="text-2xl font-extrabold text-text-primary tracking-tight">{m.value}</div>
+                  <div className="text-xs font-semibold text-text-primary mt-0.5">{m.label}</div>
+                  <div className="text-[10px] text-text-muted mt-0.5">{m.sub}</div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </div>
 
       {/* ── Main content grid ────────────────────────────────────────────── */}
@@ -183,14 +229,22 @@ export default function DashboardPage() {
           <Card className="border-border-subtle shadow-sm">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-base font-bold text-text-primary">Semester Progress</CardTitle>
-              <Link href="/analytics" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
-                View Analytics <ChevronRight size={13} />
+              <Link href="/analytics" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 group">
+                View Analytics <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </CardHeader>
             <CardContent>
               {loading && !analytics ? (
-                <div className="h-32 flex items-center justify-center">
-                  <p className="text-sm text-text-muted animate-pulse">Loading analytics…</p>
+                <div className="space-y-4 py-2 animate-in fade-in duration-300">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <Skeleton className="h-4 w-28 rounded-md" />
+                        <Skeleton className="h-4 w-16 rounded-md" />
+                      </div>
+                      <Skeleton className="h-2 w-full rounded-full" />
+                    </div>
+                  ))}
                 </div>
               ) : analytics ? (
                 <>
@@ -201,26 +255,18 @@ export default function DashboardPage() {
                   )}
                   {/* Compact department progress bars */}
                   <div className="space-y-3">
-                    {analytics.departments.slice(0, 5).map((d, i) => {
-                      const colors = ['bg-blue-400', 'bg-violet-400', 'bg-pink-400', 'bg-cyan-400', 'bg-green-400'];
-                      return (
-                        <div key={d.name}>
-                          <div className="flex items-center justify-between mb-1.5 text-sm">
-                            <span className="font-semibold text-text-primary text-xs">{d.name}</span>
-                            <div className="flex items-center gap-3 text-[11px] text-text-muted">
-                              <span>{d.completed} / {d.planned}</span>
-                              <span className="font-bold text-text-primary w-8 text-right">{d.progress}%</span>
-                            </div>
-                          </div>
-                          <div className="w-full bg-border-subtle rounded-full h-2 overflow-hidden">
-                            <div
-                              className={`${colors[i % colors.length]} h-2 rounded-full transition-all duration-700`}
-                              style={{ width: `${d.progress}%` }}
-                            />
+                    {analytics.departments.slice(0, 5).map((d, i) => (
+                      <div key={d.name}>
+                        <div className="flex items-center justify-between mb-1.5 text-sm">
+                          <span className="font-semibold text-text-primary text-xs">{d.name}</span>
+                          <div className="flex items-center gap-3 text-[11px] text-text-muted">
+                            <span>{d.completed} / {d.planned}</span>
+                            <span className="font-bold text-text-primary w-8 text-right">{d.progress}%</span>
                           </div>
                         </div>
-                      );
-                    })}
+                        <Bar value={d.progress} index={i} label={`${d.name} progress`} />
+                      </div>
+                    ))}
                   </div>
 
                   {/* Charts */}
@@ -338,6 +384,22 @@ export default function DashboardPage() {
                   <ArrowRight size={14} className="text-text-muted group-hover:text-primary transition-colors" />
                 </Link>
               ))}
+            </CardContent>
+          </Card>
+
+          {/* Transparent by Design Trust Card */}
+          <Card className="border-border-subtle shadow-sm bg-gradient-to-br from-blue-50/50 via-white to-slate-50/50">
+            <CardContent className="p-5 space-y-3">
+              <span className="icon-chip lg" aria-hidden>
+                <ShieldCheck size={22} />
+              </span>
+              <h2 className="text-sm font-bold text-text-primary">Transparent by design</h2>
+              <p className="text-xs text-text-muted leading-relaxed">
+                Source reports are preserved. Missing evidence stays missing. Uncertain matches require a person, not a guess.
+              </p>
+              <Link href="/audit" className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                Explore the audit trail <ArrowRight size={14} />
+              </Link>
             </CardContent>
           </Card>
         </div>

@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { Analytics } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Charts } from '@/components/analytics-charts';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CircleHelp } from 'lucide-react';
 
 export default function AnalyticsPage() {
@@ -51,7 +52,20 @@ export default function AnalyticsPage() {
       )}
 
       {loading && !analytics ? (
-        <div className="p-12 text-center text-sm text-text-muted animate-pulse">Loading analytics…</div>
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <Card key={i} className="border-border-subtle shadow-sm p-6 space-y-3">
+                <Skeleton className="h-3 w-28 rounded-md" />
+                <Skeleton className="h-8 w-16 rounded-md" />
+              </Card>
+            ))}
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <Skeleton className="h-[340px] w-full rounded-2xl" />
+            <Skeleton className="h-[340px] w-full rounded-2xl" />
+          </div>
+        </div>
       ) : analytics ? (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

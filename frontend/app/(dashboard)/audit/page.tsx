@@ -4,6 +4,8 @@ import { api } from '@/lib/api';
 import { Audit } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AuditIcon } from '@/components/status-badge';
 import { ShieldCheck, ClipboardList } from 'lucide-react';
 
 export function AuditTimeline({ entries }: { entries: Audit[] }) {
@@ -27,7 +29,9 @@ export function AuditTimeline({ entries }: { entries: Audit[] }) {
               {entries.map(a => (
                 <details key={a.id} className="group relative pl-6">
                   <summary className="flex flex-col cursor-pointer outline-none list-none select-none">
-                    <div className="absolute w-3 h-3 bg-primary rounded-full -left-[27px] top-1.5 border-[2px] border-white ring-2 ring-primary/20" />
+                    <span className="timeline-dot absolute -left-[35px] top-0.5 w-6 h-6 rounded-full flex items-center justify-center bg-blue-50 text-primary border-2 border-white shadow-xs">
+                      <AuditIcon action={a.action} />
+                    </span>
                     <div className="flex flex-wrap items-baseline gap-2 mb-1">
                       <strong className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors">
                         {a.action.replaceAll('_',' ')}
@@ -95,7 +99,19 @@ export default function AuditPage() {
       )}
 
       {loading && !audit.length ? (
-        <div className="p-12 text-center text-sm text-text-muted animate-pulse">Loading audit trail…</div>
+        <Card className="border-border-subtle shadow-sm overflow-hidden p-6 animate-in fade-in duration-300">
+          <div className="relative border-l-2 border-border-subtle ml-3 space-y-6">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="relative pl-6 space-y-2">
+                <span className="absolute -left-[35px] top-0 w-6 h-6 rounded-full flex items-center justify-center bg-slate-100 border-2 border-white">
+                  <Skeleton className="w-2.5 h-2.5 rounded-full" />
+                </span>
+                <Skeleton className="h-5 w-40 rounded-md" />
+                <Skeleton className="h-3 w-56 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </Card>
       ) : (
         <AuditTimeline entries={audit} />
       )}

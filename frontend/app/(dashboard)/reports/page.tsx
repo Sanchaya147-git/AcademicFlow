@@ -1,12 +1,14 @@
 'use client';
 import { FormEvent, useEffect, useState, useCallback } from 'react';
-import { FileText, Upload, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { FileText, FileSpreadsheet, Upload, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { api, post } from '@/lib/api';
 import { Report, Event as ExecutionEvent, Candidate } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StatusBadge } from '@/components/status-badge';
 
 export default function ReportsPage() {
   const { user } = useAuth();
@@ -15,6 +17,7 @@ export default function ReportsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [dragging, setDragging] = useState(false);
   const [pipeline, setPipeline] = useState<{ event_id: string; decision: string; candidates: Candidate[] }[]>([]);
   const [revision, setRevision] = useState(0);
 
@@ -156,14 +159,29 @@ export default function ReportsPage() {
           <Card className="border-border-subtle shadow-sm">
             <CardHeader className="border-b border-border-subtle pb-4">
               <CardTitle className="text-base flex items-center gap-2">
-                <Upload size={18} className="text-primary" /> Spreadsheet ingestion
+                <span className="icon-chip" aria-hidden><FileSpreadsheet size={16} /></span> Spreadsheet ingestion
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
               <form onSubmit={uploadSpreadsheet} className="space-y-6">
-                <div className="border-2 border-dashed border-border-subtle rounded-xl p-8 text-center bg-background/50 hover:bg-background transition-colors">
+                <div 
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+                    dragging ? 'border-primary bg-primary/5 scale-[1.01]' : 'border-border-subtle bg-background/50 hover:bg-background'
+                  }`}
+                  onDragEnter={() => setDragging(true)}
+                  onDragOver={e => e.preventDefault()}
+                  onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    setDragging(false);
+                    const input = e.currentTarget.querySelector('input');
+                    if (input && e.dataTransfer.files.length) {
+                      input.files = e.dataTransfer.files;
+                    }
+                  }}
+                >
                   <div className="flex flex-col items-center justify-center space-y-2 text-primary mb-4">
-                    <Upload size={32} />
+                    <span className="icon-chip lg upload-icon mb-1" aria-hidden><Upload size={22} /></span>
                     <strong className="text-sm text-text-primary">Upload faculty execution reports</strong>
                     <p className="text-xs text-text-muted">.xlsx only &middot; up to 5 MB &middot; 5,000 rows</p>
                   </div>
@@ -188,9 +206,7 @@ export default function ReportsPage() {
             <div className="grid gap-6">
               {pipeline.map(p => (
                 <div key={p.event_id} className="space-y-3">
-                  <Badge variant={p.decision === 'AUTO_LINKED' ? 'success' : p.decision === 'HUMAN_REVIEW' ? 'warning' : 'destructive'} className="text-[10px]">
-                    {p.decision.replaceAll('_', ' ')}
-                  </Badge>
+                  <StatusBadge value={p.decision} />
                   <div className="grid lg:grid-cols-3 gap-4">
                     {p.candidates.slice(0,3).map(c => (
                       <div key={c.id} className="border border-border-subtle rounded-lg p-4 bg-background">
@@ -221,47 +237,63 @@ export default function ReportsPage() {
         </CardHeader>
         <CardContent className="p-0">
           {loading && !reports.length ? (
-            <div className="p-12 text-center text-sm text-text-muted">Loading reports…</div>
+            <div className="p-6 space-y-4 animate-in fade-in duration-300">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border-subtle bg-background/40">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-5 w-5 rounded-md" />
+                    <Skeleton className="h-4 w-28 rounded-md" />
+                    <Skeleton className="h-4 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-24 rounded-md" />
+                </div>
+              ))}
+            </div>
           ) : !reports.length ? (
             <div className="p-16 text-center text-text-muted flex flex-col items-center gap-3">
-              <FileText size={32} className="opacity-50" />
+              <span className="icon-chip xl" aria-hidden><FileText size={28} /></span>
               <p className="text-sm">No reports yet. Submit the first faculty report above.</p>
             </div>
           ) : (
             <div className="divide-y divide-border-subtle">
-              {reports.map(r => (
-                <details key={r.id} className="group">
-                  <summary className="flex flex-wrap items-center gap-4 p-5 cursor-pointer hover:bg-background/50 text-sm list-none select-none">
-                    <FileText size={16} className="text-primary shrink-0" />
-                    <strong className="text-text-primary font-mono text-xs">{r.report_id}</strong>
-                    <Badge variant="outline" className="text-[9px] bg-background">{r.source_type}</Badge>
-                    <span className="text-text-muted text-xs ml-auto hidden sm:inline-block">{new Date(r.submitted_at).toLocaleString()}</span>
-                    <Badge variant="secondary" className="text-[9px]">{r.events.length} events</Badge>
-                  </summary>
-                  <div className="p-5 pt-0 border-t border-border-subtle bg-background/30">
-                    <div className="my-4 space-x-2">
-                      {r.events.map(e => (
-                        <Badge key={e.id} variant={e.disposition === 'COMPLETED' ? 'success' : e.disposition === 'UNMATCHED' ? 'destructive' : 'secondary'} className="text-[10px]">
-                          {e.disposition}
-                        </Badge>
-                      ))}
-                    </div>
-                    <pre className="text-[10px] bg-background border border-border-subtle p-4 rounded-lg overflow-auto max-h-60 text-text-muted mb-4 whitespace-pre-wrap">
-                      {r.raw_content}
-                    </pre>
-                    {r.file_metadata && (
-                      <pre className="text-[10px] bg-sidebar text-gray-300 p-4 rounded-lg overflow-auto max-h-40 mb-4">
-                        {JSON.stringify(r.file_metadata, null, 2)}
+              {reports.map(r => {
+                const isSheet = r.source_type.toLowerCase().includes('sheet') || r.source_type.toLowerCase().includes('xls') || r.source_type.toLowerCase().includes('excel');
+                return (
+                  <details key={r.id} className="group">
+                    <summary className="flex flex-wrap items-center gap-4 p-5 cursor-pointer hover:bg-background/50 text-sm list-none select-none">
+                      {isSheet ? (
+                        <FileSpreadsheet size={18} className="text-emerald-600 shrink-0" />
+                      ) : (
+                        <FileText size={18} className="text-primary shrink-0" />
+                      )}
+                      <strong className="text-text-primary font-mono text-xs">{r.report_id}</strong>
+                      <StatusBadge value={r.source_type} />
+                      <span className="text-text-muted text-xs ml-auto hidden sm:inline-block">{new Date(r.submitted_at).toLocaleString()}</span>
+                      <Badge variant="secondary" className="text-[9px]">{r.events.length} events</Badge>
+                    </summary>
+                    <div className="p-5 pt-0 border-t border-border-subtle bg-background/30">
+                      <div className="my-4 flex flex-wrap gap-2">
+                        {r.events.map(e => (
+                          <StatusBadge key={e.id} value={e.disposition} />
+                        ))}
+                      </div>
+                      <pre className="text-[10px] bg-background border border-border-subtle p-4 rounded-lg overflow-auto max-h-60 text-text-muted mb-4 whitespace-pre-wrap">
+                        {r.raw_content}
                       </pre>
-                    )}
-                    {submitter && (
-                      <Button variant="outline" size="sm" disabled={busy} onClick={() => resume(r.report_id)}>
-                        Process / retry safely
-                      </Button>
-                    )}
-                  </div>
-                </details>
-              ))}
+                      {r.file_metadata && (
+                        <pre className="text-[10px] bg-sidebar text-gray-300 p-4 rounded-lg overflow-auto max-h-40 mb-4">
+                          {JSON.stringify(r.file_metadata, null, 2)}
+                        </pre>
+                      )}
+                      {submitter && (
+                        <Button variant="outline" size="sm" disabled={busy} onClick={() => resume(r.report_id)}>
+                          Process / retry safely
+                        </Button>
+                      )}
+                    </div>
+                  </details>
+                );
+              })}
             </div>
           )}
         </CardContent>

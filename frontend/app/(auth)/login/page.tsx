@@ -19,6 +19,7 @@ import { post } from '@/lib/api';
 import { User } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
+import { LogoMark, Wordmark } from '@/components/logo';
 
 export default function LoginPage() {
   const [busy, setBusy] = useState(false);
@@ -212,11 +213,11 @@ export default function LoginPage() {
             
             {/* Header / Brand Icon */}
             <div className="text-center space-y-2 mb-6">
-              <div className="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#2563EB] to-[#7C3AED] flex items-center justify-center text-white shadow-md shadow-blue-500/20 mb-3">
-                <GraduationCap size={26} />
+              <div className="mx-auto flex justify-center mb-3">
+                <LogoMark size={50} live={true} />
               </div>
               <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">
-                Welcome Back
+                Welcome to <Wordmark />
               </h2>
               <p className="text-xs sm:text-sm text-[#64748B]">
                 Sign in to continue to your AcademicFlow workspace

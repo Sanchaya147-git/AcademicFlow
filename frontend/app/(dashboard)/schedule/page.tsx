@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { Activity } from '@/types';
 import { ActivityTable } from '@/components/activity-table';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SchedulePage() {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -60,7 +61,26 @@ export default function SchedulePage() {
       )}
 
       {loading && !activities.length ? (
-        <div className="p-12 text-center text-sm text-text-muted animate-pulse">Loading schedule…</div>
+        <div className="bg-white rounded-2xl border border-border-subtle p-6 shadow-xs flex flex-col flex-1 min-h-0 space-y-4 animate-in fade-in duration-300">
+          <div className="flex flex-wrap gap-3 pb-3 border-b border-border-subtle">
+            <Skeleton className="h-9 w-36 rounded-md" />
+            <Skeleton className="h-9 w-36 rounded-md" />
+            <Skeleton className="h-9 w-36 rounded-md" />
+            <Skeleton className="h-9 w-36 rounded-md" />
+          </div>
+          <div className="space-y-3 pt-2">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="flex items-center justify-between gap-4 py-3 border-b border-border-subtle/60">
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-4 w-1/3 rounded-md" />
+                  <Skeleton className="h-3 w-1/5 rounded-md" />
+                </div>
+                <Skeleton className="h-4 w-20 rounded-md hidden sm:block" />
+                <Skeleton className="h-5 w-24 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="flex flex-col flex-1 min-h-0 gap-6">
           <div className="shrink-0 flex flex-wrap gap-3 bg-background/50 p-4 rounded-xl border border-border-subtle">

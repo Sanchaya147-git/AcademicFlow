@@ -1,12 +1,16 @@
 'use client';
 import { FormEvent, useEffect, useState, useCallback } from 'react';
-import { SearchCheck, ClipboardList, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { SearchCheck, ClipboardList, CheckCircle2, ShieldCheck, Quote, ScanText, ListChecks, Check, X } from 'lucide-react';
 import { api, post } from '@/lib/api';
 import { Activity, Candidate, ReviewItem } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StatusBadge } from '@/components/status-badge';
+import { Meter } from '@/components/motion';
 
 type Resolution = { item: ReviewItem; kind: 'approve' | 'reject' | 'map' | 'classify'; candidate?: Candidate; classification?: string };
 
@@ -23,6 +27,11 @@ export default function ReviewPage() {
   const [selection, setSelection] = useState('');
   const [search, setSearch] = useState('');
   const [revision, setRevision] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const refresh = useCallback(() => { setRevision(r => r + 1); }, []);
 
@@ -37,7 +46,7 @@ export default function ReviewPage() {
     return () => { active = false; };
   }, [revision]);
 
-  const reviewer = user && ['ADMIN', 'COORDINATOR'].includes(user.role);
+  const reviewer = user && ['ADMIN', 'COORDINATOR', 'HOD'].includes(user.role);
 
   function openResolution(value: Resolution) { 
     setResolution(value); 
@@ -91,7 +100,33 @@ export default function ReviewPage() {
       )}
 
       {loading && !queue.length ? (
-        <div className="p-12 text-center text-sm text-text-muted animate-pulse">Loading review queue…</div>
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {[1, 2].map(i => (
+            <Card key={i} className="border-border-subtle shadow-xs overflow-hidden border-t-4 border-t-slate-300">
+              <CardHeader className="bg-background/50 border-b border-border-subtle pb-4 flex flex-row items-center justify-between">
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-5 w-1/3 rounded-lg" />
+                  <Skeleton className="h-3 w-1/5 rounded-md" />
+                </div>
+                <Skeleton className="h-5 w-24 rounded-full" />
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <div className="grid lg:grid-cols-3 gap-4">
+                  {[1, 2, 3].map(j => (
+                    <div key={j} className="border border-border-subtle rounded-xl p-4 bg-background/50 space-y-3">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-1/2 rounded-md" />
+                        <Skeleton className="h-4 w-12 rounded-md" />
+                      </div>
+                      <Skeleton className="h-3 w-3/4 rounded-md" />
+                      <Skeleton className="h-10 w-full rounded-lg" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : !queue.length ? (
         <div className="flex flex-col items-center justify-center p-20 text-text-muted border-2 border-dashed border-border-subtle rounded-2xl bg-background/50">
           <ClipboardList size={40} className="mb-4 opacity-50" />
@@ -106,13 +141,13 @@ export default function ReviewPage() {
                   <CardTitle className="text-lg font-bold text-text-primary">{item.event.activity_description || 'Unspecified activity'}</CardTitle>
                   <p className="text-xs text-text-muted mt-1">{item.report.report_id} &middot; {item.event.event_date || 'Date not supplied'}</p>
                 </div>
-                <Badge variant="warning">{item.event.disposition.replaceAll('_', ' ')}</Badge>
+                <StatusBadge value={item.event.disposition} />
               </CardHeader>
               <CardContent className="p-0">
                 <div className="grid lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-border-subtle">
                   <div className="p-6 bg-background/30">
                     <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <span className="w-5 h-5 rounded bg-border-subtle text-text-primary flex items-center justify-center text-[10px]">01</span> Original evidence
+                      <Quote size={13} className="text-primary shrink-0" aria-hidden /> 01 · Original evidence
                     </h3>
                     <blockquote className="text-sm leading-relaxed text-text-primary border-l-4 border-primary/40 pl-4 py-1 italic bg-background p-3 rounded-r-lg">
                       {item.event.source_excerpt || item.report.raw_content}
@@ -122,7 +157,7 @@ export default function ReviewPage() {
                   
                   <div className="p-6 bg-background/30">
                     <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <span className="w-5 h-5 rounded bg-border-subtle text-text-primary flex items-center justify-center text-[10px]">02</span> Extracted event
+                      <ScanText size={13} className="text-primary shrink-0" aria-hidden /> 02 · Extracted event
                     </h3>
                     <dl className="space-y-3">
                       {(['course','department','unit','class_section','faculty','event_date','status'] as const).map(key => (
@@ -136,7 +171,7 @@ export default function ReviewPage() {
                   
                   <div className="p-6 bg-background">
                     <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <span className="w-5 h-5 rounded bg-primary text-white flex items-center justify-center text-[10px]">03</span> Candidate activities
+                      <ListChecks size={13} className="text-primary shrink-0" aria-hidden /> 03 · Candidate activities
                     </h3>
                     <div className="space-y-4">
                       {item.candidates.map(c => (
@@ -150,12 +185,17 @@ export default function ReviewPage() {
                           <p className="text-xs text-text-muted mb-2">
                             {c.activity ? `${c.activity.course} · ${c.activity.unit} · ${c.activity.class_section}` : 'Original event retained for review'}
                           </p>
-                          <p className="text-[10px] bg-background text-text-primary p-2 rounded border border-border-subtle mb-4">{c.match_reason}</p>
+                          <Meter value={c.final_confidence} />
+                          <p className="text-[10px] bg-background text-text-primary p-2 rounded border border-border-subtle mt-3 mb-4">{c.match_reason}</p>
                           
                           {reviewer && c.decision_type === 'PENDING' && (
                             <div className="flex gap-2">
-                              <Button size="sm" className="flex-1" disabled={busy} onClick={() => openResolution({ item, candidate: c, kind: 'approve' })}>Approve</Button>
-                              <Button size="sm" variant="outline" className="flex-1 hover:bg-danger/10 hover:text-danger hover:border-danger/30" disabled={busy} onClick={() => openResolution({ item, candidate: c, kind: 'reject' })}>Reject</Button>
+                              <Button size="sm" className="flex-1" disabled={busy} onClick={() => openResolution({ item, candidate: c, kind: 'approve' })}>
+                                <Check size={14} className="mr-1.5" /> Approve
+                              </Button>
+                              <Button size="sm" variant="outline" className="flex-1 hover:bg-danger/10 hover:text-danger hover:border-danger/30" disabled={busy} onClick={() => openResolution({ item, candidate: c, kind: 'reject' })}>
+                                <X size={14} className="mr-1.5" /> Reject
+                              </Button>
                             </div>
                           )}
                         </div>
@@ -177,9 +217,9 @@ export default function ReviewPage() {
         </div>
       )}
 
-      {resolution && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg shadow-2xl">
+      {resolution && mounted ? createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 rounded-2xl">
             <CardHeader>
               <CardTitle>Confirm {resolution.kind === 'map' ? 'manual mapping' : resolution.classification?.replaceAll('_',' ').toLowerCase() || resolution.kind}</CardTitle>
               <p className="text-sm text-text-muted mt-2">This decision will be recorded with your identity and reason. Approving or mapping updates the official execution record.</p>
@@ -229,15 +269,16 @@ export default function ReviewPage() {
                 </div>
               </form>
             </CardContent>
-            <CardFooter className="flex justify-end gap-3 bg-background/50 border-t border-border-subtle p-4 rounded-b-xl">
+            <CardFooter className="flex justify-end gap-3 bg-background/50 border-t border-border-subtle p-4 rounded-b-2xl">
               <Button type="button" variant="outline" disabled={busy} onClick={() => setResolution(null)}>Cancel</Button>
               <Button type="submit" form="resolution-form" disabled={busy || reason.trim().length < 3}>
                 {busy ? 'Saving…' : 'Confirm decision'}
               </Button>
             </CardFooter>
           </Card>
-        </div>
-      )}
+        </div>,
+        document.body
+      ) : null}
     </div>
   );
 }

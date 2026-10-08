@@ -214,3 +214,21 @@ own validation, including browser tests, production build and PostgreSQL concurr
         - Added active scale micro-interactions (`active:scale-[0.98]`) across primary action buttons.
         - Polished `/login` page with animated entrance, interactive hover lifts on feature cards, and instant 1-click HOD/Faculty account pills.
       - **Production Verification:** Built cleanly with 0 TypeScript errors across all 16 Next.js routes, deployed via Docker Compose to AWS EC2, and verified live on `https://academicflowz.duckdns.org`.
+    - **Frontend Audit & Motion Plan Integration (Icons, Badges, Logo & Animations):**
+      - **Motion & Icon System v2 Implementation:**
+        - Integrated `frontend/app/motion.css` providing unified motion tokens (`--dur-fast: 120ms`, `--dur-base: 200ms`, `--dur-slow: 320ms`, `--dur-data: 700ms`, `--ease-out`), keyframes (`af-enter-up`, `af-pop`, `af-toast-in`, `af-shimmer`, `af-sheen`, `af-dot`), and reduced-motion safety overrides.
+        - Enforced consistent 1.75 stroke weight across all Lucide icons and added duotone fill (`fill: currentColor; fill-opacity: .14`) for icon chips and active navigation.
+        - Added `StatusBadge` and `AuditIcon` (`frontend/components/status-badge.tsx`) mapping 15 statuses and audit actions to distinct semantic icons (`CheckCircle2`, `Link2`, `UserCheck`, `Clock3`, `PlayCircle`, `CircleDashed`, `CircleHelp`, `XCircle`, `Ban`, `AlarmClock`, `FileText`, `FileSpreadsheet`).
+        - Replaced generic badges across `ReviewPage`, `UnmatchedPage`, `ReportsPage`, `ActivitiesPage`, and `ActivityTable` with `StatusBadge`.
+        - Integrated `Meter` (`frontend/components/motion.tsx`) for animated color-toned confidence bars (`high`, `medium`, `low`) on review and unmatched candidate cards.
+        - Integrated `Quote`, `ScanText`, `ListChecks` section icons on human review and unmatched cards (01 Evidence, 02 Extracted Event, 03 Candidates).
+        - Added `Check` and `X` icons on Approve and Reject review decisions.
+        - Added drag-and-drop file upload zone with animated drag-over lifting and `FileSpreadsheet` icon in report history.
+        - Connected animated brand logo (`LogoMark`, `Wordmark`, `Logo` with #2563eb→#1d4ed8 gradient, inner highlight, hover tilt, sheen sweep, and green live dot pulse) in `Header`, `Sidebar`, and `LoginPage`.
+        - Updated `DashboardLayout` boot loader with pulsing `LogoMark`.
+        - Wrapped review and unmatched resolution modals in `createPortal(..., document.body)` with Escape key dismiss to prevent containing-block clipping.
+        - Granted HODs (`['ADMIN', 'COORDINATOR', 'HOD']`) manual mapping and resolution review capabilities.
+        - Added metric count-up animation (`CountUp`) and `MetricIcon` chips on `DashboardPage`.
+        - Replaced plain text loaders in `AnalyticsPage` and `UnmatchedPage` with skeleton card and chart placeholders.
+      - **Verification:** Completed local Next.js build with 0 TypeScript/Turbopack errors across all 16 routes.
+

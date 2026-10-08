@@ -11,6 +11,7 @@ import {
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
 import { API_BASE, post } from '@/lib/api';
+import { LogoMark, Wordmark } from '@/components/logo';
 
 type NotificationItem = {
   id: string;
@@ -249,14 +250,11 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         </button>
 
         {/* Brand Logo in Header */}
-        <Link href="/dashboard" className="flex items-center gap-2.5 mr-2 shrink-0 group">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform"
-            style={{ background: 'linear-gradient(135deg, #4F6EF7, #A78BFA)' }}>
-            <GraduationCap size={18} className="text-white" />
-          </div>
+        <Link href="/dashboard" className="brand flex items-center gap-2.5 mr-2 shrink-0 group" aria-label="AcademicFlow home">
+          <LogoMark size={34} live={true} />
           <div className="hidden sm:block">
             <div className="font-extrabold text-sm text-text-primary leading-tight tracking-tight flex items-center gap-1.5">
-              AcademicFlow
+              <Wordmark />
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary-light text-primary uppercase">v1.0</span>
             </div>
             <div className="text-[9px] font-semibold text-text-muted tracking-wider uppercase">

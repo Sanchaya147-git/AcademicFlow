@@ -6,19 +6,19 @@ import { TopNav } from '@/components/layout/top-nav';
 import { Sidebar } from '@/components/layout/sidebar';
 import { useAuth } from '@/components/auth-provider';
 
+import { LogoMark } from '@/components/logo';
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { loading, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // While checking auth, show an animated loader
+  // While checking auth, show an animated loader with logo mark pulse
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-accent-violet flex items-center justify-center text-white shadow-md animate-bounce">
-            🎓
-          </div>
-          <p className="text-primary text-sm font-semibold animate-pulse">Connecting to AcademicFlow…</p>
+        <div className="boot" role="status">
+          <LogoMark size={48} live={false} />
+          <p className="text-sm font-medium text-[#60718a]">Connecting to AcademicFlow…</p>
         </div>
       </div>
     );

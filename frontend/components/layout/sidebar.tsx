@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { cn } from '@/lib/utils';
+import { LogoMark, Wordmark } from '@/components/logo';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -38,17 +39,14 @@ export function Sidebar({ className, onClose }: { className?: string; onClose?: 
       {/* Logo */}
       <div className="p-6 pb-4">
         <div className="flex items-center justify-between mb-8">
-          <Link href="/dashboard" onClick={onClose} className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'linear-gradient(135deg, #4F6EF7, #A78BFA)' }}>
-              <GraduationCap size={20} className="text-white" />
-            </div>
+          <Link href="/dashboard" onClick={onClose} className="brand flex items-center gap-3 group" aria-label="AcademicFlow home">
+            <LogoMark size={38} live={true} />
             <div>
-              <div className="font-extrabold text-base text-text-primary leading-tight tracking-tight">
-                AcademicFlow
+              <div className="font-extrabold text-base leading-tight tracking-tight">
+                <Wordmark />
               </div>
               <div className="text-[9px] font-bold tracking-[0.18em] text-text-muted uppercase mt-0.5">
-                Plan&nbsp;•&nbsp;Track&nbsp;•&nbsp;Achieve
+                EXECUTION INTELLIGENCE
               </div>
             </div>
           </Link>
