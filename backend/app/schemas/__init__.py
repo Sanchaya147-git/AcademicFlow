@@ -184,6 +184,12 @@ class ClassroomCreate(DTO):
     academic_year: str = Field(min_length=4, max_length=20, default="2026-2027")
 
 
+class ClassroomPatch(DTO):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    department: str | None = Field(default=None, min_length=2, max_length=50)
+    academic_year: str | None = Field(default=None, min_length=4, max_length=20)
+
+
 class ClassroomJoin(DTO):
     join_code: str = Field(min_length=3, max_length=16)
     assigned_subject: str | None = None

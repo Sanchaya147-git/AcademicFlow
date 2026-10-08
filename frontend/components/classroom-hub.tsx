@@ -1,22 +1,14 @@
 'use client';
 import { FormEvent, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
-  Users,
-  Plus,
-  Copy,
-  Check,
-  Download,
-  Calendar,
-  BookOpen,
-  CheckCircle2,
-  Clock3,
-  AlertCircle,
-  PhoneCall,
-  Sparkles,
-  UserCheck,
+  Users, Plus, Copy, Check, Download, Calendar,
+  BookOpen, CheckCircle2, Clock3, AlertCircle, PhoneCall,
+  Sparkles, UserCheck, Pencil, Trash2, X, ChevronRight, Hash
 } from 'lucide-react';
-import { api, post, API_BASE } from '@/lib/api';
+import { api, post, patch, del, API_BASE } from '@/lib/api';
 import { Activity, Classroom, User } from '@/types';
+import { Button } from '@/components/ui/button';
 
 type DailyDigest = {
   classroom_id: string;
@@ -57,25 +49,40 @@ export function ClassroomHub({
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [mySchedule, setMySchedule] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showDigestModal, setShowDigestModal] = useState(false);
+
+  const [editingClassroom, setEditingClassroom] = useState<Classroom | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDept, setEditDept] = useState('');
+  const [editYear, setEditYear] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
   const [digestData, setDigestData] = useState<DailyDigest | null>(null);
-  const [showDigestModal, setShowDigestModal] = useState(false);
+  const [digestLoading, setDigestLoading] = useState(false);
 
   // Create form
   const [newClassroomName, setNewClassroomName] = useState('');
   const [newDepartment, setNewDepartment] = useState(user.department || 'CSE');
   const [newYear, setNewYear] = useState('2026-2027');
+  const [createSaving, setCreateSaving] = useState(false);
 
   // Join form
   const [joinCode, setJoinCode] = useState('');
   const [assignedSubject, setAssignedSubject] = useState('');
   const [assignedSection, setAssignedSection] = useState('CSE-C');
+  const [joinSaving, setJoinSaving] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function loadData() {
     setLoading(true);
@@ -99,62 +106,117 @@ export function ClassroomHub({
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
+    if (!newClassroomName.trim()) {
+      onError('Please enter a classroom name');
+      return;
+    }
+    setCreateSaving(true);
     try {
       const created = await post<Classroom>('/classrooms', {
-        name: newClassroomName,
+        name: newClassroomName.trim(),
         department: newDepartment,
         academic_year: newYear,
       });
-      onNotify(`Classroom "${created.name}" created! Join Code: ${created.join_code}`);
+      onNotify(`Classroom "${created.name}" created with Join Code: ${created.join_code}`);
       setShowCreateModal(false);
       setNewClassroomName('');
-      await loadData();
+      loadData();
     } catch (err) {
       onError((err as Error).message);
     } finally {
-      setBusy(false);
+      setCreateSaving(false);
+    }
+  }
+
+  function openEditModal(c: Classroom) {
+    setEditingClassroom(c);
+    setEditName(c.name);
+    setEditDept(c.department);
+    setEditYear(c.academic_year);
+    setShowEditModal(true);
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editingClassroom) return;
+    if (!editName.trim()) {
+      onError('Classroom name cannot be empty');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const updated = await patch<Classroom>(`/classrooms/${editingClassroom.id}`, {
+        name: editName.trim(),
+        department: editDept.trim(),
+        academic_year: editYear.trim(),
+      });
+      setClassrooms(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+      onNotify(`Classroom updated to "${updated.name}" successfully!`);
+      setShowEditModal(false);
+      setEditingClassroom(null);
+    } catch (err) {
+      onError((err as Error).message);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleDeleteClassroom(c: Classroom) {
+    if (!confirm(`Are you sure you want to delete classroom "${c.name}"?`)) return;
+    try {
+      await del(`/classrooms/${c.id}`);
+      setClassrooms(prev => prev.filter(item => item.id !== c.id));
+      onNotify(`Classroom "${c.name}" removed successfully.`);
+      setShowEditModal(false);
+    } catch (err) {
+      onError((err as Error).message);
     }
   }
 
   async function handleJoin(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
+    if (!joinCode.trim()) {
+      onError('Please enter a join code');
+      return;
+    }
+    setJoinSaving(true);
     try {
       const res = await post<any>('/classrooms/join', {
-        join_code: joinCode.trim(),
+        join_code: joinCode.trim().toUpperCase(),
         assigned_subject: assignedSubject.trim() || undefined,
         assigned_section: assignedSection.trim() || undefined,
       });
-      onNotify(res.message || 'Successfully joined classroom!');
+      onNotify(`Successfully enrolled in "${res.classroom_name}"!`);
       setShowJoinModal(false);
       setJoinCode('');
-      await loadData();
+      loadData();
     } catch (err) {
       onError((err as Error).message);
     } finally {
-      setBusy(false);
+      setJoinSaving(false);
+    }
+  }
+
+  async function openDailyDigest(c: Classroom) {
+    setSelectedClassroom(c);
+    setShowDigestModal(true);
+    setDigestLoading(true);
+    setDigestData(null);
+    try {
+      const data = await api<DailyDigest>(`/classrooms/${c.id}/daily-digest`);
+      setDigestData(data);
+    } catch (err) {
+      onError((err as Error).message);
+    } finally {
+      setDigestLoading(false);
     }
   }
 
   function copyJoinCode(code: string, id: string) {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
-    onNotify(`Join Code "${code}" copied to clipboard!`);
-    setTimeout(() => setCopiedId(null), 2500);
-  }
-
-  async function openDailyDigest(c: Classroom) {
-    setBusy(true);
-    try {
-      const digest = await api<DailyDigest>(`/classrooms/${c.id}/daily-digest`);
-      setDigestData(digest);
-      setShowDigestModal(true);
-    } catch (err) {
-      onError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    onNotify(`Copied Join Code "${code}" to clipboard! Share with your teachers.`);
+    setTimeout(() => setCopiedId(null), 3000);
   }
 
   function downloadExcel(c: Classroom) {
@@ -163,130 +225,165 @@ export function ClassroomHub({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="space-y-6">
       {/* Top Banner Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl border border-border-subtle p-6 shadow-xs">
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 4px', color: '#0f172a' }}>
+          <div className="text-[10px] font-bold tracking-widest text-primary uppercase mb-1">
+            Institutional Roster
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
             {isHodOrAdmin ? 'Department Classrooms & Academic Groups' : 'My Enrolled Classrooms'}
-          </h2>
-          <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+          </h1>
+          <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
             {isHodOrAdmin
               ? 'Distribute unique join codes to teachers, review daily compliance, and export weekly master plans.'
               : 'Join your HOD’s academic group to view your assigned syllabus and submit daily class reports.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="shrink-0 flex items-center gap-3">
           {isHodOrAdmin ? (
-            <button className="primary" onClick={() => setShowCreateModal(true)}>
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-semibold px-4 py-2.5 shadow-sm flex items-center gap-1.5 cursor-pointer"
+            >
               <Plus size={16} /> Create Classroom
-            </button>
+            </Button>
           ) : (
-            <button className="primary" onClick={() => setShowJoinModal(true)}>
+            <Button
+              onClick={() => setShowJoinModal(true)}
+              className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-semibold px-4 py-2.5 shadow-sm flex items-center gap-1.5 cursor-pointer"
+            >
               <Plus size={16} /> Join with Code
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      {loading && <p className="loading">Loading classrooms data…</p>}
+      {loading && (
+        <div className="p-12 text-center text-text-muted bg-white rounded-2xl border border-border-subtle">
+          <Sparkles className="animate-spin text-primary mx-auto mb-2" size={24} />
+          <p className="text-xs font-medium">Loading classrooms & academic rosters…</p>
+        </div>
+      )}
 
       {/* Classrooms Grid */}
       {!loading && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {classrooms.length === 0 ? (
-            <div className="panel" style={{ padding: 40, textAlign: 'center', gridColumn: '1 / -1' }}>
-              <Users size={36} color="#94a3b8" style={{ margin: '0 auto 12px' }} />
-              <p style={{ fontWeight: 600, color: '#334155', marginBottom: 6 }}>No Classrooms Found</p>
-              <p style={{ fontSize: 12, color: '#64748b', maxWidth: 400, margin: '0 auto 16px' }}>
+            <div className="col-span-full bg-white rounded-2xl border border-border-subtle p-12 text-center">
+              <Users size={40} className="mx-auto text-slate-300 mb-3" />
+              <h3 className="text-sm font-bold text-text-primary mb-1">No Classrooms Found</h3>
+              <p className="text-xs text-text-muted max-w-md mx-auto mb-6">
                 {isHodOrAdmin
                   ? 'Create your first classroom group to generate a join code for your department teachers.'
                   : 'Ask your HOD for a classroom Join Code (e.g., CSE-XXXX) and click "Join with Code".'}
               </p>
               {isHodOrAdmin ? (
-                <button className="primary" onClick={() => setShowCreateModal(true)}>
-                  <Plus size={16} /> Create Classroom
-                </button>
+                <Button onClick={() => setShowCreateModal(true)} className="rounded-xl text-xs">
+                  <Plus size={15} /> Create Classroom
+                </Button>
               ) : (
-                <button className="primary" onClick={() => setShowJoinModal(true)}>
-                  <Plus size={16} /> Join Classroom
-                </button>
+                <Button onClick={() => setShowJoinModal(true)} className="rounded-xl text-xs">
+                  <Plus size={15} /> Join Classroom
+                </Button>
               )}
             </div>
           ) : (
             classrooms.map((c) => (
-              <div key={c.id} className="panel" style={{ display: 'flex', flexDirection: 'column', padding: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <div>
-                    <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: '#1e293b' }}>
-                      {c.name}
-                    </h3>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <span className="badge">{c.department}</span>
-                      <span className="badge">{c.academic_year}</span>
+              <div
+                key={c.id}
+                className="bg-white rounded-2xl border border-border-subtle p-6 shadow-xs hover:shadow-md transition-all flex flex-col group relative"
+              >
+                {/* Header: Name, Edit Button, Badges */}
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <h2 className="text-base font-bold text-text-primary truncate" title={c.name}>
+                        {c.name}
+                      </h2>
+                      {isHodOrAdmin && (
+                        <button
+                          onClick={() => openEditModal(c)}
+                          className="p-1 text-text-muted hover:text-primary rounded-md hover:bg-slate-100 transition-colors"
+                          title="Edit classroom name & details"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        {c.department}
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                        {c.academic_year}
+                      </span>
                     </div>
                   </div>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>
-                    {c.members_count} Faculty
+
+                  <span className="text-xs font-semibold text-text-muted bg-slate-50 border border-border-subtle px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1">
+                    <Users size={12} className="text-primary" /> {c.members_count} Faculty
                   </span>
                 </div>
 
                 {/* Join Code Highlight Card */}
-                <div
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: 8,
-                    padding: '12px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 16,
-                  }}
-                >
+                <div className="bg-blue-50/50 border border-blue-200 border-dashed rounded-xl p-3.5 flex items-center justify-between mb-4">
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: '0.05em' }}>
-                      JOIN CODE FOR TEACHERS
+                    <div className="text-[9px] font-extrabold text-blue-800 tracking-wider uppercase">
+                      TEACHER JOIN CODE
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: '#2563eb', letterSpacing: '0.08em' }}>
+                    <div className="text-lg font-mono font-extrabold text-primary tracking-wider mt-0.5">
                       {c.join_code}
                     </div>
                   </div>
                   <button
                     type="button"
-                    className="secondary"
-                    style={{ padding: '6px 10px', fontSize: 11 }}
                     onClick={() => copyJoinCode(c.join_code, c.id)}
+                    className="px-2.5 py-1.5 rounded-lg bg-white border border-border-subtle text-xs font-semibold hover:bg-slate-50 text-text-primary flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
                     title="Copy Join Code to clipboard"
                   >
-                    {copiedId === c.id ? <Check size={14} color="#16a34a" /> : <Copy size={14} />}
-                    {copiedId === c.id ? 'Copied' : 'Copy'}
+                    {copiedId === c.id ? (
+                      <>
+                        <Check size={13} className="text-emerald-600" />
+                        <span className="text-emerald-600">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={13} />
+                        <span>Copy</span>
+                      </>
+                    )}
                   </button>
                 </div>
 
                 {/* Meta stats */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 16 }}>
-                  <span>Activities: <b>{c.activities_count}</b></span>
-                  <span>Enrolled: <b>{c.members_count}</b></span>
+                <div className="grid grid-cols-2 gap-2 text-xs text-text-muted p-2.5 bg-slate-50/80 rounded-xl mb-4 border border-border-subtle/50">
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen size={13} className="text-primary shrink-0" />
+                    <span>Activities: <strong className="text-text-primary">{c.activities_count}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <UserCheck size={13} className="text-emerald-600 shrink-0" />
+                    <span>Enrolled: <strong className="text-text-primary">{c.members_count}</strong></span>
+                  </div>
                 </div>
 
                 {/* Action buttons */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
+                <div className="flex items-center gap-2 mt-auto pt-2">
                   {isHodOrAdmin && (
                     <button
-                      className="secondary"
-                      style={{ flex: 1, padding: '7px 10px', fontSize: 11 }}
                       onClick={() => openDailyDigest(c)}
+                      className="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-text-primary text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
-                      <UserCheck size={14} /> Daily Digest
+                      <UserCheck size={14} className="text-primary" /> Daily Digest
                     </button>
                   )}
                   <button
-                    className="secondary"
-                    style={{ flex: 1, padding: '7px 10px', fontSize: 11 }}
                     onClick={() => downloadExcel(c)}
+                    className="flex-1 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <Download size={14} /> Weekly Excel
+                    <Download size={14} className="text-emerald-600" /> Weekly Excel
                   </button>
                 </div>
               </div>
@@ -297,56 +394,62 @@ export function ClassroomHub({
 
       {/* Teacher's Personal Enrolled Schedule */}
       {!isHodOrAdmin && (
-        <section className="panel" style={{ marginTop: 12 }}>
-          <div className="panel-heading">
-            <h2>
-              <BookOpen size={18} color="#2563eb" /> Your Assigned Teaching Schedule
+        <section className="bg-white rounded-2xl border border-border-subtle p-6 shadow-xs mt-6">
+          <div className="flex items-center justify-between pb-4 border-b border-border-subtle mb-4">
+            <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+              <BookOpen size={18} className="text-primary" /> Your Assigned Teaching Schedule
             </h2>
-            <span>{mySchedule.length} Assigned Activities</span>
+            <span className="text-xs font-semibold text-text-muted">
+              {mySchedule.length} Assigned Activities
+            </span>
           </div>
 
           {mySchedule.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
-              <p>No assigned academic sessions yet. Enter your HOD's join code above to enroll.</p>
+            <div className="p-8 text-center text-text-muted">
+              <p className="text-xs">No assigned academic sessions yet. Enter your HOD's join code above to enroll.</p>
             </div>
           ) : (
-            <div className="table-scroll">
-              <table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr>
-                    <th>Activity Code</th>
-                    <th>Course</th>
-                    <th>Unit</th>
-                    <th>Topic Description</th>
-                    <th>Section</th>
-                    <th>Planned Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                  <tr className="border-b border-border-subtle bg-slate-50/60 text-text-muted font-semibold">
+                    <th className="py-2.5 px-3">Activity Code</th>
+                    <th className="py-2.5 px-3">Course</th>
+                    <th className="py-2.5 px-3">Unit</th>
+                    <th className="py-2.5 px-3">Topic Description</th>
+                    <th className="py-2.5 px-3">Section</th>
+                    <th className="py-2.5 px-3">Planned Date</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border-subtle">
                   {mySchedule.map((a) => (
-                    <tr key={a.id}>
-                      <td><b>{a.activity_id}</b></td>
-                      <td>{a.course}</td>
-                      <td>{a.unit}</td>
-                      <td>{a.activity_name}</td>
-                      <td><span className="badge">{a.class_section}</span></td>
-                      <td>{a.planned_start}</td>
-                      <td>
-                        <span className={`badge ${a.status.toLowerCase()}`}>
+                    <tr key={a.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-2.5 px-3 font-mono font-bold text-primary">{a.activity_id}</td>
+                      <td className="py-2.5 px-3 font-semibold">{a.course}</td>
+                      <td className="py-2.5 px-3 text-text-muted">{a.unit}</td>
+                      <td className="py-2.5 px-3">{a.activity_name}</td>
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 font-semibold">{a.class_section}</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-text-muted">{a.planned_start}</td>
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          a.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
+                          a.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-700' :
+                          'bg-amber-50 text-amber-700'
+                        }`}>
                           {a.status}
                         </span>
                       </td>
-                      <td>
+                      <td className="py-2.5 px-3">
                         <button
                           type="button"
-                          className="secondary"
-                          style={{ padding: '4px 8px', fontSize: 10 }}
                           onClick={onOpenVoiceCall}
-                          title="Report completion via AI voice agent"
+                          className="px-2 py-1 bg-primary-light hover:bg-primary-light/80 text-primary font-semibold rounded-lg flex items-center gap-1 text-[11px] cursor-pointer"
                         >
-                          <PhoneCall size={12} color="#2563eb" /> Report Progress
+                          <PhoneCall size={11} /> Report
                         </button>
                       </td>
                     </tr>
@@ -358,192 +461,335 @@ export function ClassroomHub({
         </section>
       )}
 
-      {/* Modal: Create Classroom (HOD) */}
-      {showCreateModal && (
-        <div className="modal-backdrop">
-          <section className="modal" role="dialog" aria-modal="true">
-            <h2 style={{ marginBottom: 12 }}>Create New Classroom Group</h2>
-            <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 12 }}>
-              A unique join code (e.g., <code>CSE-402</code>) will be automatically generated for teachers to join.
+      {/* --- CREATE CLASSROOM MODAL (Portaled to document.body) --- */}
+      {mounted && showCreateModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-border-subtle max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200 relative my-auto">
+            <button
+              onClick={() => setShowCreateModal(false)}
+              className="absolute top-4 right-4 p-1.5 text-text-muted hover:text-text-primary rounded-lg hover:bg-slate-100"
+            >
+              <X size={18} />
+            </button>
+
+            <h2 className="text-base font-bold text-text-primary mb-1 flex items-center gap-2">
+              <Plus size={18} className="text-primary" /> Create Department Classroom
+            </h2>
+            <p className="text-xs text-text-muted mb-4">
+              Create an academic group to generate a unique teacher join code and track curriculum compliance.
             </p>
-            <form onSubmit={handleCreate}>
-              <label>
-                Classroom Name
+
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-primary mb-1">
+                  Classroom Name:
+                </label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g., CSE 3rd Year - Odd Sem 2026"
                   value={newClassroomName}
                   onChange={(e) => setNewClassroomName(e.target.value)}
+                  placeholder="e.g., Computer Science Core (CSE-2026)"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-border-subtle bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  required
                 />
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <label>
-                  Department
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-text-primary mb-1">
+                    Department:
+                  </label>
                   <input
                     type="text"
-                    required
                     value={newDepartment}
                     onChange={(e) => setNewDepartment(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-border-subtle bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    required
                   />
-                </label>
-                <label>
-                  Academic Year
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-primary mb-1">
+                    Academic Year:
+                  </label>
                   <input
                     type="text"
-                    required
                     value={newYear}
                     onChange={(e) => setNewYear(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-border-subtle bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    required
                   />
-                </label>
+                </div>
               </div>
-              <div className="actions" style={{ marginTop: 12 }}>
-                <button type="button" className="secondary" onClick={() => setShowCreateModal(false)}>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-subtle">
+                <Button variant="outline" size="sm" type="button" onClick={() => setShowCreateModal(false)}>
                   Cancel
-                </button>
-                <button type="submit" className="primary" disabled={busy || !newClassroomName.trim()}>
-                  {busy ? 'Creating…' : 'Generate Group & Code'}
-                </button>
+                </Button>
+                <Button type="submit" size="sm" disabled={createSaving} className="bg-primary hover:bg-primary/90 text-white">
+                  {createSaving ? 'Creating…' : 'Create & Generate Code'}
+                </Button>
               </div>
             </form>
-          </section>
-        </div>
+          </div>
+        </div>,
+        document.body
       )}
 
-      {/* Modal: Join Classroom (Teacher) */}
-      {showJoinModal && (
-        <div className="modal-backdrop">
-          <section className="modal" role="dialog" aria-modal="true">
-            <h2 style={{ marginBottom: 12 }}>Join Classroom Group</h2>
-            <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 12 }}>
-              Enter the 6-character Join Code provided by your HOD.
+      {/* --- EDIT CLASSROOM MODAL (Portaled to document.body) --- */}
+      {mounted && showEditModal && editingClassroom && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-border-subtle max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200 relative my-auto">
+            <button
+              onClick={() => setShowEditModal(false)}
+              className="absolute top-4 right-4 p-1.5 text-text-muted hover:text-text-primary rounded-lg hover:bg-slate-100"
+            >
+              <X size={18} />
+            </button>
+
+            <h2 className="text-base font-bold text-text-primary mb-1 flex items-center gap-2">
+              <Pencil size={18} className="text-primary" /> Edit Classroom Details
+            </h2>
+            <p className="text-xs text-text-muted mb-4">
+              Update classroom title, department tag, or academic year.
             </p>
-            <form onSubmit={handleJoin}>
-              <label>
-                Join Code
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-primary mb-1">
+                  Classroom Name:
+                </label>
                 <input
                   type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="e.g., CSE III Year - Section C"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-border-subtle bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
                   required
-                  placeholder="e.g. CSE-7A9B"
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  style={{ textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}
                 />
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <label>
-                  Assigned Subject (Optional)
-                  <input
-                    type="text"
-                    placeholder="e.g. Data Structures"
-                    value={assignedSubject}
-                    onChange={(e) => setAssignedSubject(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Assigned Section (Optional)
-                  <input
-                    type="text"
-                    placeholder="e.g. CSE-C"
-                    value={assignedSection}
-                    onChange={(e) => setAssignedSection(e.target.value)}
-                  />
-                </label>
               </div>
-              <div className="actions" style={{ marginTop: 12 }}>
-                <button type="button" className="secondary" onClick={() => setShowJoinModal(false)}>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-text-primary mb-1">
+                    Department:
+                  </label>
+                  <input
+                    type="text"
+                    value={editDept}
+                    onChange={(e) => setEditDept(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-border-subtle bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-primary mb-1">
+                    Academic Year:
+                  </label>
+                  <input
+                    type="text"
+                    value={editYear}
+                    onChange={(e) => setEditYear(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-border-subtle bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-border-subtle text-xs flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-text-muted uppercase">Join Code (Permanent)</span>
+                  <div className="font-mono font-bold text-primary text-sm">{editingClassroom.join_code}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteClassroom(editingClassroom)}
+                  className="px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-1 font-semibold transition-colors"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-subtle">
+                <Button variant="outline" size="sm" type="button" onClick={() => setShowEditModal(false)}>
                   Cancel
-                </button>
-                <button type="submit" className="primary" disabled={busy || !joinCode.trim()}>
-                  {busy ? 'Joining…' : 'Join Classroom'}
-                </button>
+                </Button>
+                <Button type="submit" size="sm" disabled={editSaving} className="bg-primary hover:bg-primary/90 text-white">
+                  {editSaving ? 'Saving…' : 'Save Changes'}
+                </Button>
               </div>
             </form>
-          </section>
-        </div>
+          </div>
+        </div>,
+        document.body
       )}
 
-      {/* Modal: Daily Compliance Digest (HOD) */}
-      {showDigestModal && digestData && (
-        <div className="modal-backdrop">
-          <section className="modal" style={{ maxWidth: 680 }} role="dialog" aria-modal="true">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-                <UserCheck size={20} color="#2563eb" /> Daily Faculty Compliance Digest
-              </h2>
-              <button className="icon-button" onClick={() => setShowDigestModal(false)}>×</button>
-            </div>
-            <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 12 }}>
-              <b>{digestData.classroom_name}</b> · Date: {digestData.date}
+      {/* --- JOIN CLASSROOM MODAL (Portaled to document.body) --- */}
+      {mounted && showJoinModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-border-subtle max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200 relative my-auto">
+            <button
+              onClick={() => setShowJoinModal(false)}
+              className="absolute top-4 right-4 p-1.5 text-text-muted hover:text-text-primary rounded-lg hover:bg-slate-100"
+            >
+              <X size={18} />
+            </button>
+
+            <h2 className="text-base font-bold text-text-primary mb-1 flex items-center gap-2">
+              <Users size={18} className="text-primary" /> Join Classroom with Code
+            </h2>
+            <p className="text-xs text-text-muted mb-4">
+              Enter the unique 8-character join code provided by your Department Head.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-              <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: 11, color: '#64748b' }}>Total Faculty</span>
-                <strong style={{ display: 'block', fontSize: 20, color: '#1e293b' }}>{digestData.total_faculty}</strong>
+            <form onSubmit={handleJoin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-primary mb-1">
+                  Classroom Join Code:
+                </label>
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="e.g., CSE-CDW3"
+                  className="w-full px-3.5 py-2.5 text-sm font-mono tracking-wider font-bold rounded-xl border border-border-subtle bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary uppercase transition-all"
+                  required
+                />
               </div>
-              <div style={{ background: '#f0fdf4', padding: 12, borderRadius: 8, textAlign: 'center', border: '1px solid #bbf7d0' }}>
-                <span style={{ fontSize: 11, color: '#166534' }}>Reported Today</span>
-                <strong style={{ display: 'block', fontSize: 20, color: '#16a34a' }}>{digestData.reported_today}</strong>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-text-primary mb-1">
+                    Your Subject:
+                  </label>
+                  <input
+                    type="text"
+                    value={assignedSubject}
+                    onChange={(e) => setAssignedSubject(e.target.value)}
+                    placeholder="e.g., Data Structures"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-border-subtle bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-primary mb-1">
+                    Assigned Section:
+                  </label>
+                  <input
+                    type="text"
+                    value={assignedSection}
+                    onChange={(e) => setAssignedSection(e.target.value)}
+                    placeholder="e.g., CSE-C"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-border-subtle bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                </div>
               </div>
-              <div style={{ background: '#fffbeb', padding: 12, borderRadius: 8, textAlign: 'center', border: '1px solid #fde68a' }}>
-                <span style={{ fontSize: 11, color: '#92400e' }}>Pending Reports</span>
-                <strong style={{ display: 'block', fontSize: 20, color: '#d97706' }}>{digestData.pending_today}</strong>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-subtle">
+                <Button variant="outline" size="sm" type="button" onClick={() => setShowJoinModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" disabled={joinSaving} className="bg-primary hover:bg-primary/90 text-white">
+                  {joinSaving ? 'Joining…' : 'Join Classroom'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* --- DAILY DIGEST MODAL (Portaled to document.body) --- */}
+      {mounted && showDigestModal && selectedClassroom && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-border-subtle max-w-2xl w-full p-6 animate-in fade-in zoom-in-95 duration-200 relative my-auto max-h-[90vh] flex flex-col">
+            <button
+              onClick={() => setShowDigestModal(false)}
+              className="absolute top-4 right-4 p-1.5 text-text-muted hover:text-text-primary rounded-lg hover:bg-slate-100"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center justify-between pb-3 border-b border-border-subtle mb-4 pr-8">
+              <div>
+                <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+                  <UserCheck size={18} className="text-emerald-600" /> Daily Compliance Digest
+                </h2>
+                <p className="text-xs text-text-muted mt-0.5">
+                  {selectedClassroom.name} ({selectedClassroom.department})
+                </p>
               </div>
             </div>
 
-            <div className="table-scroll" style={{ maxHeight: 300 }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Teacher Name</th>
-                    <th>Subject</th>
-                    <th>Section</th>
-                    <th>Status</th>
-                    <th>Latest Topic Reported</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {digestData.faculty_statuses.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: '#64748b', padding: 20 }}>
-                        No teachers enrolled in this classroom yet. Share the Join Code!
-                      </td>
-                    </tr>
-                  ) : (
-                    digestData.faculty_statuses.map((f) => (
-                      <tr key={f.teacher_id}>
-                        <td><b>{f.teacher_name}</b></td>
-                        <td>{f.assigned_subject}</td>
-                        <td><span className="badge">{f.assigned_section}</span></td>
-                        <td>
-                          {f.compliance.reported ? (
-                            <span className="badge completed" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                              <CheckCircle2 size={10} /> Reported ({f.compliance.source_type || 'WEB'})
-                            </span>
-                          ) : (
-                            <span className="badge unmatched" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                              <Clock3 size={10} /> Pending
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ fontSize: 11 }}>
-                          {f.compliance.topic || <span style={{ color: '#94a3b8' }}>—</span>}
-                        </td>
+            {digestLoading ? (
+              <div className="p-8 text-center text-text-muted">
+                <Sparkles className="animate-spin text-primary mx-auto mb-2" size={20} />
+                <p className="text-xs">Compiling faculty submission statuses…</p>
+              </div>
+            ) : digestData ? (
+              <div className="overflow-y-auto flex-1 space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200/60 text-center">
+                    <div className="text-lg font-bold text-blue-700">{digestData.total_faculty}</div>
+                    <div className="text-[10px] text-text-muted uppercase font-semibold">Total Faculty</div>
+                  </div>
+                  <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/60 text-center">
+                    <div className="text-lg font-bold text-emerald-700">{digestData.reported_today}</div>
+                    <div className="text-[10px] text-text-muted uppercase font-semibold">Reported Today</div>
+                  </div>
+                  <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/60 text-center">
+                    <div className="text-lg font-bold text-amber-700">{digestData.pending_today}</div>
+                    <div className="text-[10px] text-text-muted uppercase font-semibold">Pending Today</div>
+                  </div>
+                </div>
+
+                <div className="border border-border-subtle rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-border-subtle text-text-muted font-semibold">
+                        <th className="py-2.5 px-3">Faculty</th>
+                        <th className="py-2.5 px-3">Subject / Section</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Topic Covered</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-border-subtle">
+                      {digestData.faculty_statuses.map((f) => (
+                        <tr key={f.teacher_id} className="hover:bg-slate-50/50">
+                          <td className="py-2.5 px-3 font-semibold text-text-primary">
+                            {f.teacher_name}
+                            <div className="text-[10px] text-text-muted font-normal">{f.teacher_email}</div>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {f.assigned_subject || 'General'}
+                            <span className="ml-1 text-[10px] px-1.5 py-0.2 rounded bg-slate-100 font-semibold">
+                              {f.assigned_section}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              f.compliance.reported ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                            }`}>
+                              {f.compliance.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-text-muted truncate max-w-xs">
+                            {f.compliance.topic || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
 
-            <div className="actions" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
-              <button className="primary" onClick={() => setShowDigestModal(false)}>
-                Done
-              </button>
+            <div className="flex justify-end pt-3 border-t border-border-subtle mt-4">
+              <Button variant="outline" size="sm" onClick={() => setShowDigestModal(false)}>
+                Close
+              </Button>
             </div>
-          </section>
-        </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

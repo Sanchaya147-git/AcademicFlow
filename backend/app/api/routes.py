@@ -28,6 +28,7 @@ from app.schemas import (
     CandidateOut,
     Classification,
     ClassroomCreate,
+    ClassroomPatch,
     ClassroomJoin,
     ClassroomMemberOut,
     ClassroomOut,
@@ -575,6 +576,49 @@ def get_classroom_details(classroom_id: UUID, db: Session = Db, user: User = Aut
         "members": members,
         "activities": activities,
     }
+
+
+@router.patch("/classrooms/{classroom_id}", response_model=ClassroomOut)
+def update_classroom(classroom_id: UUID, body: ClassroomPatch, db: Session = Db, user: User = Auth):
+    """Allows HOD or Admin to edit classroom name, department, or academic year."""
+    if user.role not in ["HOD", "ADMIN"]:
+        raise HTTPException(403, "Only HOD or Admin can edit classrooms")
+    c = db.get(Classroom, classroom_id)
+    if not c:
+        raise HTTPException(404, "Classroom not found")
+    if user.role == "HOD" and c.hod_id and c.hod_id != user.id:
+        raise HTTPException(403, "Cannot edit another department head's classroom")
+
+    if body.name is not None and body.name.strip():
+        c.name = body.name.strip()
+    if body.department is not None and body.department.strip():
+        c.department = body.department.strip().upper()
+    if body.academic_year is not None and body.academic_year.strip():
+        c.academic_year = body.academic_year.strip()
+
+    db.commit()
+    db.refresh(c)
+
+    out = ClassroomOut.model_validate(c)
+    out.member_count = len(c.members)
+    out.activity_count = len(c.activities)
+    return out
+
+
+@router.delete("/classrooms/{classroom_id}")
+def delete_classroom(classroom_id: UUID, db: Session = Db, user: User = Auth):
+    """Allows HOD or Admin to delete an unused or test classroom."""
+    if user.role not in ["HOD", "ADMIN"]:
+        raise HTTPException(403, "Only HOD or Admin can delete classrooms")
+    c = db.get(Classroom, classroom_id)
+    if not c:
+        raise HTTPException(404, "Classroom not found")
+    if user.role == "HOD" and c.hod_id and c.hod_id != user.id:
+        raise HTTPException(403, "Cannot delete another department head's classroom")
+
+    db.delete(c)
+    db.commit()
+    return {"status": "deleted", "id": str(classroom_id)}
 
 
 @router.post("/classrooms/join")

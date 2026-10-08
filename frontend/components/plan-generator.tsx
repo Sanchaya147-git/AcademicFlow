@@ -1,20 +1,13 @@
 'use client';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState, useRef } from 'react';
 import {
-  Sparkles,
-  Upload,
-  Calendar,
-  BookOpen,
-  CheckCircle2,
-  Trash2,
-  Plus,
-  Send,
-  FileSpreadsheet,
-  Layers,
-  ArrowRight,
+  Sparkles, Upload, Calendar, BookOpen, CheckCircle2,
+  Trash2, Plus, Send, FileSpreadsheet, Layers, ArrowRight,
+  FileText, Image as ImageIcon, Check, X, AlertCircle
 } from 'lucide-react';
 import { api, post } from '@/lib/api';
 import { Classroom, User } from '@/types';
+import { Button } from '@/components/ui/button';
 
 type GeneratedActivity = {
   activity_id: string;
@@ -55,6 +48,7 @@ export function PlanGenerator({
   const [generating, setGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [previewActivities, setPreviewActivities] = useState<GeneratedActivity[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api<Classroom[]>('/classrooms')
@@ -94,6 +88,7 @@ export function PlanGenerator({
     setCourse(t.crs);
     setClassSection(t.sec);
     setPromptText(t.prompt);
+    onNotify(`Applied starter prompt: ${t.title}`);
   }
 
   async function handleExtractOrPrompt(e: FormEvent) {
@@ -184,257 +179,328 @@ export function PlanGenerator({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 4px', color: '#0f172a' }}>
-          AI Timetable OCR & Natural Language Plan Generator
-        </h2>
-        <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
-          Upload a timetable photo/PDF or describe the desired curriculum. Claude Haiku structures the syllabus and slots it into your classroom group.
-        </p>
+    <div className="space-y-6">
+      {/* Header Banner */}
+      <div className="bg-white rounded-2xl border border-border-subtle p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold tracking-widest text-primary uppercase">
+              AI Syllabus Engine
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 flex items-center gap-1">
+              <Sparkles size={11} /> Claude Haiku Vision & OCR
+            </span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
+            AI Timetable OCR & Natural Language Plan Generator
+          </h1>
+          <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
+            Upload a timetable photo/PDF or describe the desired curriculum. Claude Haiku structures the syllabus and slots it into your classroom group.
+          </p>
+        </div>
       </div>
 
-      {/* Quick Template Cards */}
+      {/* Quick Template Starters */}
       <div>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Quick HOD Prompt Starters:
-        </span>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10, marginTop: 8 }}>
+        <div className="text-[11px] font-bold tracking-wider text-text-muted uppercase mb-3 flex items-center gap-1.5">
+          <Sparkles size={13} className="text-primary" /> Quick HOD Prompt Starters:
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {templates.map((t, idx) => (
             <div
               key={idx}
               onClick={() => applyTemplate(t)}
-              style={{
-                background: 'white',
-                border: '1px solid #e2e8f0',
-                borderRadius: 8,
-                padding: '12px 14px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2563eb')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')}
+              className="bg-white hover:bg-blue-50/40 border border-border-subtle hover:border-primary/50 rounded-2xl p-4 transition-all cursor-pointer shadow-2xs hover:shadow-xs group"
             >
-              <div style={{ fontWeight: 600, fontSize: 12, color: '#1e293b', marginBottom: 4 }}>
-                {t.title}
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-xs text-text-primary group-hover:text-primary transition-colors">
+                  {t.title}
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  {t.sec}
+                </span>
               </div>
-              <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>
-                {t.prompt.slice(0, 95)}…
-              </div>
+              <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
+                {t.prompt}
+              </p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Input Form Panel */}
-      <section className="panel" style={{ padding: 24 }}>
-        <form onSubmit={handleExtractOrPrompt}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <label>
-              Target Classroom Group
+      {/* Main Generator Form */}
+      <section className="bg-white rounded-2xl border border-border-subtle p-6 md:p-8 shadow-xs">
+        <form onSubmit={handleExtractOrPrompt} className="space-y-6">
+          {/* Metadata Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="lg:col-span-2">
+              <label className="block text-xs font-semibold text-text-primary mb-1.5">
+                Target Classroom Group:
+              </label>
               <select
                 value={selectedClassroomId}
                 onChange={(e) => setSelectedClassroomId(e.target.value)}
+                className="w-full rounded-xl border border-border-subtle bg-slate-50/50 px-3.5 py-2.5 text-xs text-text-primary focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none font-medium"
               >
                 <option value="">Institution-wide Master Plan (No Group)</option>
                 {classrooms.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.join_code})
+                    {c.name} ({c.department} - {c.academic_year})
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
 
-            <label>
-              Course Name
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1.5">
+                Course Name:
+              </label>
               <input
                 type="text"
-                required
                 value={course}
                 onChange={(e) => setCourse(e.target.value)}
-                placeholder="e.g. Data Structures"
+                placeholder="e.g., Data Structures"
+                className="w-full rounded-xl border border-border-subtle bg-slate-50/50 px-3.5 py-2.5 text-xs text-text-primary focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none font-medium"
+                required
               />
-            </label>
+            </div>
 
-            <label>
-              Class Section
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1.5">
+                Class Section:
+              </label>
               <input
                 type="text"
-                required
                 value={classSection}
                 onChange={(e) => setClassSection(e.target.value)}
-                placeholder="e.g. CSE-C"
+                placeholder="e.g., CSE-C"
+                className="w-full rounded-xl border border-border-subtle bg-slate-50/50 px-3.5 py-2.5 text-xs text-text-primary focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none font-medium"
+                required
               />
-            </label>
+            </div>
 
-            <label>
-              Faculty In-Charge
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1.5">
+                Curriculum Start Date:
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full rounded-xl border border-border-subtle bg-slate-50/50 px-3.5 py-2.5 text-xs text-text-primary focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none font-medium"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1.5">
+                Department:
+              </label>
+              <input
+                type="text"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className="w-full rounded-xl border border-border-subtle bg-slate-50/50 px-3.5 py-2.5 text-xs text-text-primary focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none font-medium"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1.5">
+                Faculty In-Charge:
+              </label>
               <input
                 type="text"
                 value={faculty}
                 onChange={(e) => setFaculty(e.target.value)}
-                placeholder="e.g. Dr. Ramanathan"
+                placeholder="e.g., Dr. Ramanathan"
+                className="w-full rounded-xl border border-border-subtle bg-slate-50/50 px-3.5 py-2.5 text-xs text-text-primary focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none font-medium"
               />
-            </label>
-
-            <label>
-              Curriculum Start Date
-              <input
-                type="date"
-                required
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </label>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, marginTop: 16 }}>
-            {/* Natural language prompter */}
-            <label>
-              Natural Language Syllabus Instructions
-              <textarea
-                rows={4}
-                value={promptText}
-                onChange={(e) => setPromptText(e.target.value)}
-                placeholder="e.g., Create a 10-session plan for CSE-C starting Monday. Include 6 lectures on Singly/Doubly Linked Lists and 4 hands-on laboratory exercises."
-              />
-            </label>
-
-            {/* Timetable / PDF File Upload */}
-            <div className="upload-area" style={{ height: 'auto', minHeight: 120 }}>
-              <Upload size={24} color="#2563eb" />
-              <strong>Upload Timetable Photo or Syllabus PDF</strong>
-              <p style={{ margin: 0 }}>PNG, JPG, or PDF (OCR automated)</p>
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
-              {file && <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>Selected: {file.name}</span>}
             </div>
           </div>
 
-          <div className="actions" style={{ marginTop: 20, justifyContent: 'flex-end' }}>
+          {/* Prompt & File Upload Inputs */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1.5">
+                Natural Language Syllabus Instructions:
+              </label>
+              <textarea
+                rows={5}
+                value={promptText}
+                onChange={(e) => setPromptText(e.target.value)}
+                placeholder="e.g., Generate a 10-session plan for CSE-C starting Monday. Include 6 lectures on Graph Algorithms (BFS, DFS, Dijkstra) and 4 hands-on laboratory sessions."
+                className="w-full rounded-xl border border-border-subtle bg-slate-50/50 p-3.5 text-xs text-text-primary placeholder:text-text-muted focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none resize-none leading-relaxed"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1.5">
+                Upload Timetable Photo or Syllabus PDF:
+              </label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-border-subtle hover:border-primary/60 bg-slate-50/50 hover:bg-blue-50/30 rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[126px]"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+                {file ? (
+                  <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-border-subtle shadow-2xs">
+                    <FileText size={16} className="text-primary shrink-0" />
+                    <span className="text-xs font-semibold text-text-primary truncate max-w-xs">{file.name}</span>
+                    <span className="text-[10px] text-text-muted font-mono">({Math.round(file.size / 1024)} KB)</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                      className="p-1 hover:text-danger text-text-muted"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <Upload size={22} className="text-primary mb-2" />
+                    <p className="text-xs font-semibold text-text-primary">
+                      Click to browse or drop timetable photo/PDF
+                    </p>
+                    <p className="text-[10px] text-text-muted mt-0.5">
+                      Supports PNG, JPG, or PDF (Claude Haiku OCR automated)
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end pt-2">
             <button
               type="submit"
-              className="primary"
-              disabled={generating || (!promptText.trim() && !file)}
+              disabled={generating || (!promptText && !file)}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
             >
-              <Sparkles size={16} />
-              {generating ? 'Analyzing Timetable & Generating…' : 'Generate Academic Plan'}
+              {generating ? (
+                <>
+                  <Sparkles size={15} className="animate-spin" />
+                  Generating Structured Plan with Claude…
+                </>
+              ) : (
+                <>
+                  <Sparkles size={15} />
+                  Generate Academic Plan
+                </>
+              )}
             </button>
           </div>
         </form>
       </section>
 
-      {/* Generated Preview Grid */}
+      {/* Generated Preview Table */}
       {previewActivities.length > 0 && (
-        <section className="panel">
-          <div className="panel-heading">
+        <section className="bg-white rounded-2xl border border-border-subtle p-6 shadow-xs animate-in fade-in duration-300">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border-subtle mb-4 gap-3">
             <div>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <CheckCircle2 size={18} color="#16a34a" /> Plan Preview ({previewActivities.length} Sessions)
+              <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+                <CheckCircle2 size={18} className="text-emerald-600" /> Generated Plan Preview
               </h2>
-              <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 11 }}>
-                Review, edit, or add sessions below. Clicking "Publish" permanently commits these rows into the classroom and embeds them for semantic AI matching.
+              <p className="text-xs text-text-muted mt-0.5">
+                Review, modify, or add sessions before committing to the institutional Master Excel.
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" className="secondary" onClick={addEmptyRow} style={{ padding: '6px 10px', fontSize: 11 }}>
-                <Plus size={14} /> Add Row
-              </button>
-              <button
-                type="button"
-                className="primary"
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={addEmptyRow} className="rounded-xl text-xs">
+                <Plus size={13} /> Add Session
+              </Button>
+              <Button
+                size="sm"
                 onClick={handlePublish}
                 disabled={publishing}
-                style={{ padding: '6px 14px', fontSize: 11 }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs"
               >
-                <ArrowRight size={14} /> {publishing ? 'Publishing…' : 'Publish Plan to Classroom'}
-              </button>
+                {publishing ? 'Publishing…' : 'Publish to Master Plan & Sync Excel'}
+              </Button>
             </div>
           </div>
 
-          <div className="table-scroll">
-            <table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr>
-                  <th>Activity ID</th>
-                  <th>Unit</th>
-                  <th>Topic Description</th>
-                  <th>Type</th>
-                  <th>Section</th>
-                  <th>Planned Date</th>
-                  <th>Action</th>
+                <tr className="bg-slate-50 border-b border-border-subtle text-text-muted font-semibold">
+                  <th className="py-2.5 px-3">Code</th>
+                  <th className="py-2.5 px-3">Unit</th>
+                  <th className="py-2.5 px-3">Topic Title</th>
+                  <th className="py-2.5 px-3">Type</th>
+                  <th className="py-2.5 px-3">Section</th>
+                  <th className="py-2.5 px-3">Date</th>
+                  <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border-subtle">
                 {previewActivities.map((act, idx) => (
-                  <tr key={idx}>
-                    <td>
+                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-2 px-3">
                       <input
                         type="text"
-                        style={{ padding: '4px 6px', fontSize: 11, width: 130 }}
                         value={act.activity_id}
                         onChange={(e) => updateActivityField(idx, 'activity_id', e.target.value)}
+                        className="w-28 px-2 py-1 text-xs font-mono font-bold text-primary rounded-lg border border-border-subtle bg-slate-50 focus:bg-white"
                       />
                     </td>
-                    <td>
+                    <td className="py-2 px-3">
                       <input
                         type="text"
-                        style={{ padding: '4px 6px', fontSize: 11, width: 140 }}
                         value={act.unit}
                         onChange={(e) => updateActivityField(idx, 'unit', e.target.value)}
+                        className="w-20 px-2 py-1 text-xs rounded-lg border border-border-subtle bg-slate-50 focus:bg-white"
                       />
                     </td>
-                    <td>
+                    <td className="py-2 px-3">
                       <input
                         type="text"
-                        style={{ padding: '4px 6px', fontSize: 11, width: '100%', minWidth: 200 }}
                         value={act.activity_name}
                         onChange={(e) => updateActivityField(idx, 'activity_name', e.target.value)}
+                        className="w-full min-w-[200px] px-2 py-1 text-xs font-medium rounded-lg border border-border-subtle bg-slate-50 focus:bg-white"
                       />
                     </td>
-                    <td>
+                    <td className="py-2 px-3">
                       <select
-                        style={{ padding: '4px 6px', fontSize: 11 }}
                         value={act.activity_type}
                         onChange={(e) => updateActivityField(idx, 'activity_type', e.target.value)}
+                        className="px-2 py-1 text-xs rounded-lg border border-border-subtle bg-slate-50 focus:bg-white"
                       >
                         <option value="Lecture">Lecture</option>
-                        <option value="Practical">Practical</option>
+                        <option value="Lab">Lab</option>
                         <option value="Tutorial">Tutorial</option>
                       </select>
                     </td>
-                    <td>
+                    <td className="py-2 px-3">
                       <input
                         type="text"
-                        style={{ padding: '4px 6px', fontSize: 11, width: 70 }}
                         value={act.class_section}
                         onChange={(e) => updateActivityField(idx, 'class_section', e.target.value)}
+                        className="w-16 px-2 py-1 text-xs rounded-lg border border-border-subtle bg-slate-50 focus:bg-white"
                       />
                     </td>
-                    <td>
+                    <td className="py-2 px-3">
                       <input
                         type="date"
-                        style={{ padding: '4px 6px', fontSize: 11 }}
                         value={act.planned_start}
-                        onChange={(e) => {
-                          updateActivityField(idx, 'planned_start', e.target.value);
-                          updateActivityField(idx, 'planned_end', e.target.value);
-                        }}
+                        onChange={(e) => updateActivityField(idx, 'planned_start', e.target.value)}
+                        className="px-2 py-1 text-xs rounded-lg border border-border-subtle bg-slate-50 focus:bg-white"
                       />
                     </td>
-                    <td>
+                    <td className="py-2 px-3 text-right">
                       <button
-                        type="button"
-                        className="icon-button"
                         onClick={() => removeActivity(idx)}
+                        className="p-1 text-text-muted hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
                         title="Remove session"
-                        style={{ color: '#ef4444' }}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </td>
                   </tr>
