@@ -49,7 +49,7 @@ export default function ActivitiesPage() {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 flex flex-col h-[calc(100vh-6rem)]">
+    <div className="space-y-6 animate-in fade-in duration-500 flex flex-col">
       <div className="shrink-0 flex items-end justify-between gap-4">
         <div>
           <div className="text-[10px] font-bold tracking-widest text-primary uppercase mb-1">Academic Intelligence</div>
@@ -95,7 +95,7 @@ export default function ActivitiesPage() {
       )}
 
       {loading && !activities.length ? (
-        <div className="bg-white rounded-2xl border border-border-subtle p-6 shadow-xs flex flex-col flex-1 min-h-0 space-y-4 animate-in fade-in duration-300">
+        <div className="bg-white rounded-2xl border border-border-subtle p-6 shadow-xs flex flex-col space-y-4 animate-in fade-in duration-300">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-border-subtle">
             <Skeleton className="h-6 w-48 rounded-lg" />
             <Skeleton className="h-9 w-64 rounded-xl" />
@@ -115,31 +115,31 @@ export default function ActivitiesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col flex-1 min-h-0 gap-6">
-          <div className="shrink-0 flex flex-wrap gap-3 bg-background/50 p-4 rounded-xl border border-border-subtle">
-            <select aria-label="Department" value={department} onChange={e => setDepartment(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]">
+        <div className="flex flex-col gap-6">
+          <div className="shrink-0 flex flex-wrap items-center gap-3 bg-white p-4 rounded-2xl border border-border-subtle shadow-xs">
+            <select aria-label="Department" value={department} onChange={e => setDepartment(e.target.value)} className="h-9 rounded-xl border border-border-subtle px-3 py-1 text-xs text-text-primary bg-slate-50/50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-[150px] transition-all">
               <option value="">All departments</option>
               {[...new Set(activities.map(a => a.department))].map(v => <option key={v}>{v}</option>)}
             </select>
-            <select aria-label="Course" value={course} onChange={e => setCourse(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]">
+            <select aria-label="Course" value={course} onChange={e => setCourse(e.target.value)} className="h-9 rounded-xl border border-border-subtle px-3 py-1 text-xs text-text-primary bg-slate-50/50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-[150px] transition-all">
               <option value="">All courses</option>
               {[...new Set(activities.map(a => a.course))].map(v => <option key={v}>{v}</option>)}
             </select>
-            <select aria-label="Status" value={status} onChange={e => setStatus(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]">
+            <select aria-label="Status" value={status} onChange={e => setStatus(e.target.value)} className="h-9 rounded-xl border border-border-subtle px-3 py-1 text-xs text-text-primary bg-slate-50/50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-[150px] transition-all">
               <option value="">All statuses</option>
               {['PLANNED','IN_PROGRESS','COMPLETED','CANCELLED'].map(v => <option key={v}>{v}</option>)}
             </select>
-            <select aria-label="Class section" value={classSection} onChange={e => setClassSection(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]">
+            <select aria-label="Class section" value={classSection} onChange={e => setClassSection(e.target.value)} className="h-9 rounded-xl border border-border-subtle px-3 py-1 text-xs text-text-primary bg-slate-50/50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-[150px] transition-all">
               <option value="">All classes</option>
               {[...new Set(activities.map(a => a.class_section))].map(v => <option key={v}>{v}</option>)}
             </select>
-            <input aria-label="Planned date" type="date" value={planDate} onChange={e => setPlanDate(e.target.value)} className="h-9 rounded-md border border-border-subtle px-3 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]" />
-            <Button variant="ghost" size="sm" className="h-9 text-text-muted hover:text-text-primary ml-auto" onClick={() => { setDepartment(''); setCourse(''); setStatus(''); setClassSection(''); setPlanDate(''); }}>
+            <input aria-label="Planned date" type="date" value={planDate} onChange={e => setPlanDate(e.target.value)} className="h-9 rounded-xl border border-border-subtle px-3 py-1 text-xs text-text-primary bg-slate-50/50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-[150px] transition-all" />
+            <Button variant="ghost" size="sm" className="h-9 text-text-muted hover:text-text-primary ml-auto rounded-xl" onClick={() => { setDepartment(''); setCourse(''); setStatus(''); setClassSection(''); setPlanDate(''); }}>
               Clear filters
             </Button>
           </div>
           
-          <div className="flex-1 min-h-0">
+          <div>
             <ActivityTable data={filtered} schedule={false} />
           </div>
         </div>

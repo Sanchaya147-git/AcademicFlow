@@ -64,9 +64,6 @@ export function TopNav({ className }: { className?: string }) {
                   )}
                 />
                 <span>{link.label}</span>
-                {link.isAi && !isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-                )}
               </Link>
             );
           })}

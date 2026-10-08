@@ -231,4 +231,16 @@ own validation, including browser tests, production build and PostgreSQL concurr
         - Added metric count-up animation (`CountUp`) and `MetricIcon` chips on `DashboardPage`.
         - Replaced plain text loaders in `AnalyticsPage` and `UnmatchedPage` with skeleton card and chart placeholders.
       - **Verification:** Completed local Next.js build with 0 TypeScript/Turbopack errors across all 16 routes.
+    - **Master Plan Table & Top Navigation Bar Polish (Production Verified):**
+      - **Resolved Master Plan Layout Collapse & Cell Merging:**
+        - Refactored `ActivityTable` (`frontend/components/activity-table.tsx`) from legacy unstyled markup into modern Tailwind card and table formatting (`bg-white rounded-2xl border border-border-subtle shadow-xs`).
+        - Implemented explicit cell padding (`px-4 py-3.5`) across all columns to eliminate horizontal cell collision between Course, Class, Status, and Progress.
+        - Vertically stacked the Academic Activity title (`font-semibold text-xs leading-snug line-clamp-2`) and Activity ID (`text-[10px] font-mono text-text-muted mt-0.5`), resolving inline string concatenation.
+        - Rendered Class as a distinct pill badge (`bg-slate-100 text-slate-700 border border-slate-200/70 shadow-2xs`).
+        - Formatted the Progress bar column as a flex row with dedicated width (`min-w-[130px]`) and tabular percentage indicator.
+      - **Fixed Top Navigation Bar Artifact Collision:**
+        - Removed the trailing purple pulse dot from the `AI Plan Prompter` tab in `TopNav` (`frontend/components/layout/top-nav.tsx`), eliminating the visual artifact jammed against the adjacent `Master Plan` active tab pill.
+      - **Enhanced Status Badges:**
+        - Updated `StatusBadge` (`frontend/components/status-badge.tsx`) with comprehensive Tailwind backgrounds, borders, text colors, and shadows across all 15 status states to prevent unstyled plain text rendering.
+      - **Verification:** Compiled cleanly with 0 TypeScript errors across all 16 routes, pushed to `feature/total-vision-classrooms-ocr-excel`, and deployed to EC2 production.
 
