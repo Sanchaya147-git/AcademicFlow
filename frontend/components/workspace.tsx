@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { Activity as Pulse, ArrowRight, BookOpen, CheckCircle2, ClipboardList, Clock3, Download, FileText, GraduationCap, LayoutDashboard, LogOut, RefreshCw, SearchCheck, ShieldCheck, Upload, BarChart3, CalendarDays, CircleHelp, Bell, PhoneCall, Sparkles, Users } from 'lucide-react';
+import { Activity as Pulse, ArrowRight, BookOpen, CheckCircle2, ClipboardList, Clock3, Download, FileText, GraduationCap, LayoutDashboard, LogOut, Mail, RefreshCw, SearchCheck, ShieldCheck, Upload, BarChart3, CalendarDays, CircleHelp, Bell, PhoneCall, Sparkles, Users } from 'lucide-react';
 import { API_BASE, api, post } from '@/lib/api';
 import { Activity, Analytics, Audit, Candidate, Event as ExecutionEvent, Report, ReviewItem, User } from '@/types';
 import { ActivityTable } from './activity-table';
@@ -78,6 +78,35 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
   const [chatInput, setChatInput] = useState('');
   const [chatComplete, setChatComplete] = useState(false);
   const [chatMatchResult, setChatMatchResult] = useState<any>(null);
+
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailRecipient, setEmailRecipient] = useState('roxyzinc07@gmail.com');
+  const [emailMode, setEmailMode] = useState<'live' | 'simulate'>('live');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailResult, setEmailResult] = useState<any>(null);
+
+  async function handleSendEmail(mode: 'live' | 'simulate') {
+    setEmailMode(mode);
+    setEmailSending(true);
+    setError('');
+    setEmailResult(null);
+    try {
+      const res = await post<any>('/email/send-master-plan', {
+        recipient: emailRecipient,
+        mode: mode,
+      });
+      setEmailResult(res);
+      setNotice(
+        mode === 'live'
+          ? `Master plan dispatched via Twilio to ${emailRecipient}! (Op: ${res.operation_id})`
+          : `Simulated email generated for ${emailRecipient} with Excel attachment.`
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setEmailSending(false);
+    }
+  }
 
   function startNewConversation() {
     setChatSessionId('sim_' + Math.random().toString(36).substring(2, 9));
@@ -237,7 +266,7 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
 
   return <div className="workspace"><aside className="sidebar"><Link href="/dashboard" className="brand"><div className="brand-mark"><GraduationCap size={23} /></div><div>AcademicFlow<small>EXECUTION INTELLIGENCE</small></div></Link><div className="institution"><span className="institution-icon">AF</span><div>Academic workspace<small>{user.department || 'Institution-wide access'}</small></div></div><p className="nav-label">WORKSPACE</p><nav>{links.filter(([key]) => (!['review','unmatched'].includes(key) || ['ADMIN','COORDINATOR','HOD'].includes(user.role)) && (key !== 'plan-generator' || ['ADMIN','HOD','COORDINATOR'].includes(user.role))).map(([key, label, Icon]) => <Link key={key} href={`/${key}`} className={section === key ? 'active' : ''}><Icon size={18} />{label}{key === 'review' && analytics?.summary.needs_review ? <span className="nav-count">{analytics.summary.needs_review}</span> : null}</Link>)}</nav><div className="trust-card"><ShieldCheck size={20} /><strong>Human judgment matters</strong><p>AI-assisted — review when uncertain. Every decision retains its evidence.</p></div><div className="sidebar-footer"><span className="status-dot" /> Local MVP · {provider === 'demo' ? 'Offline demo provider' : 'OpenAI provider'}</div></aside>
     <div className="main-shell"><header className="topbar"><span>Workspace <span className="muted">/ {activityId ? 'Activity detail' : titles[section]?.[0]}</span></span><div className="header-right"><span className="role-pill">{user.role.replaceAll('_',' ')}</span><Bell size={17} aria-label="Notifications appear in the status area" /><span className="avatar">{user.name.slice(0,2).toUpperCase()}</span><button className="icon-button" aria-label="Sign out" onClick={async () => { try { await post('/auth/logout'); setUser(null); setAnalytics(null); setReports([]); setQueue([]); setAudit([]); setActivities([]); setDetail(null); setNotice(''); setPipeline([]); } catch(e) { setError((e as Error).message); } }}><LogOut size={17} /></button></div></header>
-    <main className="content"><div className="page-heading"><div><div className="eyebrow">ACADEMIC INTELLIGENCE</div><h1>{activityId ? detail?.activity.activity_name || 'Activity details' : titles[section]?.[0]}</h1><p>{activityId ? 'Plan, execution evidence, and decision history in one place.' : titles[section]?.[1]}</p></div><div className="heading-actions"><a className="secondary" href={`${API_BASE}/api/excel/master`} download="master_academic_plan.xlsx" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}><Download size={15} /> Master Excel</a><button className="secondary" onClick={() => { setShowCallModal(true); startNewConversation(); setCallResult(null); }}><PhoneCall size={15} /> Simulate Call</button><button className="secondary" onClick={refresh} disabled={loading || busy}><RefreshCw size={15} /> Refresh</button>{section === 'dashboard' && submitter && <Link className="primary" href="/reports"><Upload size={16} /> Submit report</Link>}</div></div>
+    <main className="content"><div className="page-heading"><div><div className="eyebrow">ACADEMIC INTELLIGENCE</div><h1>{activityId ? detail?.activity.activity_name || 'Activity details' : titles[section]?.[0]}</h1><p>{activityId ? 'Plan, execution evidence, and decision history in one place.' : titles[section]?.[1]}</p></div><div className="heading-actions"><a className="secondary" href={`${API_BASE}/api/excel/master`} download="master_academic_plan.xlsx" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}><Download size={15} /> Master Excel</a>{user && ['HOD', 'ADMIN'].includes(user.role) && (<><button className="secondary" onClick={() => { setShowEmailModal(true); setEmailMode('live'); setEmailResult(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}><Mail size={15} /> Email Plan (Twilio)</button><button className="secondary" onClick={() => { setShowEmailModal(true); setEmailMode('simulate'); setEmailResult(null); handleSendEmail('simulate'); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderColor: '#8b5cf6', color: '#7c3aed' }}><Sparkles size={15} /> Simulate Mail</button></>)}<button className="secondary" onClick={() => { setShowCallModal(true); startNewConversation(); setCallResult(null); }}><PhoneCall size={15} /> Simulate Call</button><button className="secondary" onClick={refresh} disabled={loading || busy}><RefreshCw size={15} /> Refresh</button>{section === 'dashboard' && submitter && <Link className="primary" href="/reports"><Upload size={16} /> Submit report</Link>}</div></div>
     {provider === 'demo' && <div className="demo-banner"><CircleHelp size={16} /> Offline demonstration mode: deterministic extraction and lexical vectors, not live semantic AI.</div>}
     {notice && <div className="notice" role="status"><CheckCircle2 size={17} /><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss notification">×</button></div>}
     {error && <div className="error" role="alert">{error} <button onClick={refresh}>Retry loading</button></div>}
@@ -488,6 +517,90 @@ export function Workspace({ section = 'dashboard', activityId }: { section?: str
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
             <button className="secondary" onClick={() => setShowCallModal(false)}>Close</button>
+          </div>
+        </section>
+      </div>
+    )}
+
+    {showEmailModal && (
+      <div className="modal-backdrop">
+        <section className="modal" style={{ maxWidth: 580 }} role="dialog" aria-modal="true">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontSize: 18 }}>
+              <Mail size={20} color="#2563eb" /> HOD Master Plan Email Center
+            </h2>
+            <span className="role-pill">HOD EXCLUSIVE</span>
+          </div>
+          
+          <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 16px' }}>
+            Dispatch the live institutional <strong>master_academic_plan.xlsx</strong> spreadsheet to the Department Head mailbox via Twilio or simulate.
+          </p>
+
+          <label style={{ display: 'block', marginBottom: 14 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>
+              Target Email Address:
+            </span>
+            <input
+              type="email"
+              value={emailRecipient}
+              onChange={e => setEmailRecipient(e.target.value)}
+              style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+              placeholder="roxyzinc07@gmail.com"
+            />
+          </label>
+
+          <div style={{ padding: '10px 14px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FileText size={16} color="#059669" />
+              <span><strong>Attachment:</strong> master_academic_plan.xlsx</span>
+            </div>
+            <a href={`${API_BASE}/api/excel/master`} download="master_academic_plan.xlsx" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}>Download Preview</a>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <button
+              className="primary"
+              disabled={emailSending || !emailRecipient.trim()}
+              onClick={() => handleSendEmail('live')}
+              style={{ justifyContent: 'center', gap: 6 }}
+            >
+              <Mail size={15} /> {emailSending && emailMode === 'live' ? 'Sending via Twilio…' : 'Send via Twilio'}
+            </button>
+            <button
+              className="secondary"
+              disabled={emailSending || !emailRecipient.trim()}
+              onClick={() => handleSendEmail('simulate')}
+              style={{ justifyContent: 'center', gap: 6, borderColor: '#8b5cf6', color: '#7c3aed' }}
+            >
+              <Sparkles size={15} /> {emailSending && emailMode === 'simulate' ? 'Simulating…' : 'Simulate Mail'}
+            </button>
+          </div>
+
+          {emailResult && (
+            <div style={{
+              padding: 12,
+              borderRadius: 8,
+              border: emailResult.mode === 'live' ? '1px solid #bbf7d0' : '1px solid #ddd6fe',
+              background: emailResult.mode === 'live' ? '#f0fdf4' : '#f5f3ff',
+              fontSize: 12,
+              color: emailResult.mode === 'live' ? '#166534' : '#5b21b6',
+              marginBottom: 12
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <strong>{emailResult.mode === 'live' ? '✓ Dispatched via Twilio Comms API' : '⚡ Simulated Dispatch Recorded'}</strong>
+                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: '#ffffff', fontWeight: 600 }}>{emailResult.operation_id}</span>
+              </div>
+              <p style={{ margin: '4px 0' }}>{emailResult.message}</p>
+              <div style={{ fontSize: 11, opacity: 0.85, marginTop: 6 }}>
+                <span><strong>Recipient:</strong> {emailResult.recipient}</span> · 
+                <span> <strong>Size:</strong> {emailResult.file_size_bytes} bytes</span> · 
+                <span> <strong>File:</strong> {emailResult.excel_filename}</span>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+            <button className="secondary" onClick={() => setShowEmailModal(false)}>Close</button>
           </div>
         </section>
       </div>

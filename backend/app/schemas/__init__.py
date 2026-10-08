@@ -210,3 +210,21 @@ class ClassroomOut(DTO):
     created_at: datetime
     member_count: int = 0
     activity_count: int = 0
+
+
+class EmailSendRequest(DTO):
+    recipient: str = Field(default="roxyzinc07@gmail.com")
+    mode: str = Field(default="live", pattern="^(live|simulate)$")
+
+
+class EmailSendResponse(DTO):
+    status: str
+    mode: str
+    recipient: str
+    operation_id: str
+    message: str
+    excel_filename: str
+    file_size_bytes: int
+    timestamp: str
+    preview_html: str | None = None
+    attachment_sample: str | None = None

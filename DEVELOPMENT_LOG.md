@@ -178,4 +178,9 @@ own validation, including browser tests, production build and PostgreSQL concurr
     - Resolved voice call cut-off by extending Twilio `<Gather>`: increased `timeout` to 15s, replaced `speechTimeout="auto"` with `speechTimeout="5"` (5 seconds silence before end-of-speech), added `maxSpeechTime="60"`, and enabled `speechModel="experimental_conversations"`.
     - Tuned voice call pause latency: reduced `speechTimeout` to 2 seconds and `timeout` to 10 seconds across all TwiML `<Gather>` blocks for rapid conversational turnaround.
     - Preserved multi-turn voice context: assistant turn history formatted as JSON in `session["turns"]` to preserve Claude's structured response pattern, with intelligent fallback parsing to ensure follow-up clarifying questions are always spoken to the caller.
+    - Implemented HOD-exclusive Master Academic Plan email dispatch via Twilio Comms Email API (`POST /api/email/send-master-plan`):
+      - Live mode: Dispatches approved email payload directly to `roxyzinc07@gmail.com` via `https://comms.twilio.com/v1/Emails` with Basic Auth, tracking live Twilio operation ID.
+      - Simulate mode: Generates full rich email dispatch with `master_academic_plan.xlsx` attachment metadata and database audit logging.
+      - Strict Role-Based Access Control: Restricted to HOD and ADMIN roles; faculty/staff calls rejected with 403 Forbidden.
+      - Frontend HOD Email Center: Added "Email Plan (Twilio)" and "Simulate Mail" buttons and interactive modal in header actions, conditionally rendered only for HOD users.
 

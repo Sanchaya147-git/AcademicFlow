@@ -16,6 +16,7 @@ from app.extraction.service import extract_report
 from app.matching.embedding_service import activity_text, get_embeddings
 from app.services.weekly_excel import generate_classroom_excel
 from app.services.excel_sync import EXCEL_PATH, ensure_master_excel, sync_activities_to_excel
+from app.services.email_service import send_master_plan_email
 from app.services.plan_generator import generate_plan_from_prompt_or_file
 from app.matching.service import run_matching
 from app.models import Activity, Audit, Classroom, ClassroomMember, Event, ExecutionLink, Match, Report, User, generate_join_code
@@ -30,6 +31,8 @@ from app.schemas import (
     ClassroomJoin,
     ClassroomMemberOut,
     ClassroomOut,
+    EmailSendRequest,
+    EmailSendResponse,
     EventOut,
     Login,
     ManualMap,
@@ -717,6 +720,24 @@ def download_master_academic_excel(db: Session = Db, user: User = Auth):
         path=str(EXCEL_PATH),
         filename="master_academic_plan.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@router.post("/email/send-master-plan", response_model=EmailSendResponse)
+def dispatch_master_plan_email(
+    body: EmailSendRequest,
+    db: Session = Db,
+    user: User = Auth,
+):
+    """
+    HOD-exclusive endpoint to dispatch or simulate the Master Academic Plan Excel email.
+    """
+    require(user, "HOD", "ADMIN")
+    return send_master_plan_email(
+        db=db,
+        user=user,
+        recipient=body.recipient,
+        mode=body.mode,
     )
 
 
