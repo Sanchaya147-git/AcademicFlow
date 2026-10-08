@@ -23,7 +23,7 @@ const navLinks = [
   { href: '/audit', label: 'Audit Trail', icon: ShieldCheck },
 ];
 
-export function Sidebar({ className }: { className?: string }) {
+export function Sidebar({ className, onClose }: { className?: string; onClose?: () => void }) {
   const pathname = usePathname();
   const { user } = useAuth();
 
@@ -32,25 +32,36 @@ export function Sidebar({ className }: { className?: string }) {
 
   return (
     <aside className={cn(
-      'w-64 bg-sidebar flex flex-col flex-shrink-0 min-h-screen overflow-y-auto border-r border-border-subtle',
+      'w-64 bg-sidebar flex flex-col flex-shrink-0 min-h-screen overflow-y-auto border-r border-border-subtle bg-white',
       className
     )}>
       {/* Logo */}
       <div className="p-6 pb-4">
-        <Link href="/dashboard" className="flex items-center gap-3 mb-8 group">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: 'linear-gradient(135deg, #4F6EF7, #A78BFA)' }}>
-            <GraduationCap size={20} className="text-white" />
-          </div>
-          <div>
-            <div className="font-extrabold text-base text-text-primary leading-tight tracking-tight">
-              AcademicFlow
+        <div className="flex items-center justify-between mb-8">
+          <Link href="/dashboard" onClick={onClose} className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'linear-gradient(135deg, #4F6EF7, #A78BFA)' }}>
+              <GraduationCap size={20} className="text-white" />
             </div>
-            <div className="text-[9px] font-bold tracking-[0.18em] text-text-muted uppercase mt-0.5">
-              Plan&nbsp;•&nbsp;Track&nbsp;•&nbsp;Achieve
+            <div>
+              <div className="font-extrabold text-base text-text-primary leading-tight tracking-tight">
+                AcademicFlow
+              </div>
+              <div className="text-[9px] font-bold tracking-[0.18em] text-text-muted uppercase mt-0.5">
+                Plan&nbsp;•&nbsp;Track&nbsp;•&nbsp;Achieve
+              </div>
             </div>
-          </div>
-        </Link>
+          </Link>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-slate-100 transition-colors"
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          )}
+        </div>
 
         {/* User chip */}
         <div className="rounded-xl border border-border-subtle bg-primary-light/60 p-3 mb-6 flex items-center gap-3">
@@ -79,6 +90,7 @@ export function Sidebar({ className }: { className?: string }) {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={onClose}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   isActive

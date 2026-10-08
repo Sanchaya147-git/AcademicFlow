@@ -5,7 +5,8 @@ import Link from 'next/link';
 import {
   Menu, Bell, LogOut, Search, Download, Mail, Sparkles,
   PhoneCall, FileText, CheckCircle2, AlertCircle, Send, Check,
-  User, Settings as SettingsIcon, ShieldCheck, ChevronRight, X, Clock, Trash2
+  User, Settings as SettingsIcon, ShieldCheck, ChevronRight, X, Clock, Trash2,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
@@ -236,22 +237,39 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   }
 
   return (
-    <header className="h-16 bg-white/80 backdrop-blur-sm border-b border-border-subtle flex items-center justify-between px-4 lg:px-8 shrink-0 sticky top-0 z-30">
-      {/* Left: mobile menu + search */}
-      <div className="flex items-center gap-3 flex-1 max-w-sm">
+    <header className="h-16 bg-white/90 backdrop-blur-md border-b border-border-subtle flex items-center justify-between px-4 lg:px-8 shrink-0 sticky top-0 z-30 shadow-2xs">
+      {/* Left: Brand Logo + Mobile menu toggle + search */}
+      <div className="flex items-center gap-3.5 flex-1 max-w-md">
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2 -ml-2 text-text-muted hover:text-text-primary rounded-lg hover:bg-accent-violet/40 transition-colors"
+          className="lg:hidden p-2 -ml-2 text-text-muted hover:text-text-primary rounded-xl hover:bg-slate-100 transition-colors"
           aria-label="Open menu"
         >
           <Menu size={20} />
         </button>
 
-        <div className="hidden sm:flex items-center gap-2 bg-background border border-border-subtle rounded-xl px-3 py-1.5 flex-1">
+        {/* Brand Logo in Header */}
+        <Link href="/dashboard" className="flex items-center gap-2.5 mr-2 shrink-0 group">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform"
+            style={{ background: 'linear-gradient(135deg, #4F6EF7, #A78BFA)' }}>
+            <GraduationCap size={18} className="text-white" />
+          </div>
+          <div className="hidden sm:block">
+            <div className="font-extrabold text-sm text-text-primary leading-tight tracking-tight flex items-center gap-1.5">
+              AcademicFlow
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary-light text-primary uppercase">v1.0</span>
+            </div>
+            <div className="text-[9px] font-semibold text-text-muted tracking-wider uppercase">
+              Plan • Track • Achieve
+            </div>
+          </div>
+        </Link>
+
+        <div className="hidden md:flex items-center gap-2 bg-slate-50/80 border border-border-subtle rounded-xl px-3 py-1.5 flex-1 focus-within:bg-white focus-within:border-primary/50 transition-colors">
           <Search size={14} className="text-text-muted shrink-0" />
           <input
             type="text"
-            placeholder="Search syllabus, classes…"
+            placeholder="Search syllabus, courses, faculty…"
             className="bg-transparent text-xs text-text-primary placeholder:text-text-muted focus:outline-none w-full"
           />
         </div>
@@ -262,7 +280,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         <a
           href={`${API_BASE}/api/excel/master`}
           download="master_academic_plan.xlsx"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-subtle bg-white text-xs font-semibold text-text-primary hover:bg-slate-50 transition-colors shadow-2xs"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-subtle bg-white text-xs font-semibold text-text-primary hover:bg-slate-50 active:scale-[0.97] transition-all shadow-2xs"
           title="Download live Master Academic Plan workbook"
         >
           <Download size={14} className="text-emerald-600" />
@@ -273,7 +291,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           <>
             <button
               onClick={() => { setShowEmailModal(true); setEmailMode('live'); setEmailResult(null); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-subtle bg-white text-xs font-semibold text-text-primary hover:bg-slate-50 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-subtle bg-white text-xs font-semibold text-text-primary hover:bg-slate-50 active:scale-[0.97] transition-all shadow-2xs cursor-pointer"
               title="Dispatch plan to HOD mailbox via Twilio"
             >
               <Mail size={14} className="text-blue-600" />
@@ -282,7 +300,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
             <button
               onClick={() => { setShowEmailModal(true); setEmailMode('simulate'); handleSendEmail('simulate'); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-200 bg-violet-50 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-200 bg-violet-50 text-xs font-semibold text-violet-700 hover:bg-violet-100 active:scale-[0.97] transition-all shadow-2xs cursor-pointer"
               title="Simulate email dispatch with Excel attachment"
             >
               <Sparkles size={14} className="text-violet-600" />
@@ -293,7 +311,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
         <button
           onClick={() => { setShowCallModal(true); startNewConversation(); setCallResult(null); }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors shadow-2xs"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-xs font-semibold text-amber-800 hover:bg-amber-100 active:scale-[0.97] transition-all shadow-2xs cursor-pointer"
           title="Simulate Twilio phone call or interactive browser voice dialog"
         >
           <PhoneCall size={14} className="text-amber-600" />
@@ -307,20 +325,23 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 text-text-muted hover:text-text-primary hover:bg-accent-violet/40 rounded-xl transition-colors cursor-pointer"
+            className="relative p-2 text-text-muted hover:text-text-primary hover:bg-slate-100 rounded-xl active:scale-95 transition-all cursor-pointer"
             aria-label="Notifications"
             title="System Notifications"
           >
             <Bell size={18} />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-danger text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white shadow-xs">
-                {unreadCount}
-              </span>
+              <>
+                <span className="animate-ping absolute top-1 right-1 h-3 w-3 rounded-full bg-rose-400 opacity-75" />
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-danger text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white shadow-xs">
+                  {unreadCount}
+                </span>
+              </>
             )}
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-border-subtle z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-border-subtle z-50 overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200">
               <div className="p-3.5 bg-slate-50/80 border-b border-border-subtle flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Bell size={15} className="text-primary" />

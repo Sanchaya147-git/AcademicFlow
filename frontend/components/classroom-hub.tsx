@@ -9,6 +9,7 @@ import {
 import { api, post, patch, del, API_BASE } from '@/lib/api';
 import { Activity, Classroom, User } from '@/types';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type DailyDigest = {
   classroom_id: string;
@@ -261,9 +262,26 @@ export function ClassroomHub({
       </div>
 
       {loading && (
-        <div className="p-12 text-center text-text-muted bg-white rounded-2xl border border-border-subtle">
-          <Sparkles className="animate-spin text-primary mx-auto mb-2" size={24} />
-          <p className="text-xs font-medium">Loading classrooms & academic rosters…</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-2xl border border-border-subtle p-6 shadow-xs flex flex-col space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-5 w-3/4 rounded-lg" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-4 w-12 rounded-full" />
+                    <Skeleton className="h-4 w-16 rounded-full" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-20 rounded-lg" />
+              </div>
+              <Skeleton className="h-16 w-full rounded-xl" />
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <Skeleton className="h-10 rounded-xl" />
+                <Skeleton className="h-10 rounded-xl" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

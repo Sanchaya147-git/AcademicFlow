@@ -49,8 +49,48 @@ def _generate_dynamic_fallback(
 ) -> List[Dict[str, Any]]:
     """Generates a dynamic, course-relevant curriculum schedule when offline or without API key."""
     base_date = start_date or (date.today() + timedelta(days=1))
+    is_all_courses = course.strip().upper() in ["ALL", "ALL COURSES", "AUTO", "*"] or not course.strip()
 
-    # Standard academic curriculum progression template
+    if is_all_courses:
+        # Generate multi-course timetable schedule covering core department subjects
+        all_modules = [
+            ("Data Structures", "Unit I — Linked Structures", "Singly Linked List Implementation & Pointer Manipulation", "Lecture", "Dr. Ramanathan"),
+            ("Data Structures", "Unit I — Linked Structures", "Doubly Linked List Deletion & Traversal Lab", "Practical", "Dr. Ramanathan"),
+            ("Database Systems", "Unit I — Relational Models", "Relational Algebra & Entity Relationship Modeling", "Lecture", "Prof. Anitha"),
+            ("Database Systems", "Unit II — SQL & Normalization", "SQL Joins, Group By Queries & BCNF Decomposition", "Lecture", "Prof. Anitha"),
+            ("Operating Systems", "Unit I — Process Management", "Process Lifecycle, Forking & CPU Scheduling Algorithms", "Lecture", "Dr. Suresh"),
+            ("Operating Systems", "Unit II — Concurrency", "Semaphores, Mutex Locks & Producer-Consumer Problem", "Lecture", "Dr. Suresh"),
+            ("Computer Networks", "Unit I — OSI & TCP/IP", "Transport Layer Protocols, TCP Handshake & Congestion Control", "Lecture", "Prof. Priya"),
+            ("Data Structures", "Unit II — Stacks & Queues", "Array-based Stack Evaluation & Infix to Postfix Conversion", "Lecture", "Dr. Ramanathan"),
+        ]
+        results = []
+        for idx, (crs_name, unit, topic, act_type, default_fac) in enumerate(all_modules[:count]):
+            day_offset = idx * 2
+            p_date = base_date + timedelta(days=day_offset)
+            if p_date.weekday() == 5:
+                p_date += timedelta(days=2)
+            elif p_date.weekday() == 6:
+                p_date += timedelta(days=1)
+            code_prefix = "".join([w[0] for w in crs_name.split() if w]).upper() or "SUB"
+            sec = class_section.replace("-", "").upper()
+            act_id = f"{department}-{code_prefix}-{sec}-{idx+1:03d}"
+            results.append({
+                "activity_id": act_id,
+                "semester": semester,
+                "department": department,
+                "course": crs_name,
+                "unit": unit,
+                "activity_name": topic,
+                "activity_type": act_type,
+                "faculty": faculty if faculty and ":" not in faculty else default_fac,
+                "class_section": class_section,
+                "planned_start": p_date.isoformat(),
+                "planned_end": p_date.isoformat(),
+                "level": 5,
+            })
+        return results
+
+    # Standard single course progression template
     modules = [
         ("Unit I — Foundations & Overview", f"Introduction and Core Principles of {course}", "Lecture"),
         ("Unit I — Foundations & Overview", f"Theoretical Architecture and Formal Models in {course}", "Lecture"),
@@ -232,25 +272,51 @@ def generate_plan_from_prompt_or_file(
             logger.info("Attached PDF document for syllabus extraction (%d bytes)", len(file_bytes))
 
     # Construct user prompt
-    user_instruction = (
-        f"Generate a sequence of academic activities for:\n"
-        f"Department: {department}\n"
-        f"Course: {course}\n"
-        f"Class Section: {class_section}\n"
-        f"Faculty: {faculty or 'Course In-Charge'}\n"
-        f"Starting date: {base_date.isoformat()}\n"
-        f"Semester: {semester}\n"
-    )
-    if prompt:
-        user_instruction += f"\nHOD Specific Instructions: {prompt}\n"
-    if file_bytes:
-        user_instruction += (
-            "\nExtract the timetable slots, days, subject codes, and faculty from the attached file. "
-            "For each class slot found, construct a scheduled lecture with sequential dates."
+    is_all_courses = course.strip().upper() in ["ALL", "ALL COURSES", "AUTO", "*"] or not course.strip()
+    if is_all_courses:
+        user_instruction = (
+            f"Generate a comprehensive, sequential curriculum plan for ALL COURSES found in the timetable or prompt:\n"
+            f"Department: {department}\n"
+            f"Target Scope: ALL COURSES (extract every individual subject code and course name from the timetable or instructions)\n"
+            f"Class Section: {class_section}\n"
+            f"Curriculum Start Date: {base_date.isoformat()}\n"
+            f"Semester: {semester}\n"
         )
+        if faculty:
+            user_instruction += (
+                f"\nTeacher / Subject Handlers specified by HOD: {faculty}\n"
+                "Assign each course/activity to its designated teacher based on this mapping or the timetable legend.\n"
+            )
+        else:
+            user_instruction += "\nExtract the teacher/faculty name assigned to each subject directly from the timetable rows, columns, or legend.\n"
+        if file_bytes:
+            user_instruction += (
+                "\nOCR MULTI-COURSE INSTRUCTIONS: Perform OCR on the attached timetable image/PDF. "
+                "Scan all rows, columns, and days. Extract every distinct course, its subject code, "
+                "its assigned faculty instructor, and its weekly time slots. "
+                "Generate sequentially scheduled sessions covering each course."
+            )
+    else:
+        user_instruction = (
+            f"Generate a sequence of academic activities for:\n"
+            f"Department: {department}\n"
+            f"Course: {course}\n"
+            f"Class Section: {class_section}\n"
+            f"Faculty: {faculty or 'Course In-Charge'}\n"
+            f"Starting date: {base_date.isoformat()}\n"
+            f"Semester: {semester}\n"
+        )
+        if file_bytes:
+            user_instruction += (
+                f"\nExtract the timetable slots for {course} from the attached file. "
+                "For each class slot found, construct a scheduled lecture with sequential dates."
+            )
+
+    if prompt:
+        user_instruction += f"\nHOD Specific Instructions & Curriculum Topics: {prompt}\n"
 
     user_instruction += (
-        "\nProvide 6 to 10 sequential scheduled sessions. "
+        "\nProvide 8 to 12 sequential scheduled sessions. "
         "Return strictly a raw JSON array of objects without commentary or conversational prelude."
     )
     content_blocks.append({"type": "text", "text": user_instruction})
