@@ -194,5 +194,12 @@ own validation, including browser tests, production build and PostgreSQL concurr
       - Backend and Frontend containers rebuilt and running healthy with Docker Compose.
       - Hardened Twilio voice caller ID parsing by automatically stripping any `whatsapp:` prefix for voice calls.
       - Verified live authentication, Master Excel export (`GET /api/excel/master`), simulated email dispatch, and live Twilio Comms email dispatch to `sanchaya06@gmail.com` with 202 Accepted.
+    - **UI/UX Overhaul, Classroom Name Edit & Settings Page (Production Verified):**
+      - **Classroom Name Edit & Deletion:** Added `PATCH /api/classrooms/{id}` and `DELETE /api/classrooms/{id}` endpoints in FastAPI routes and schemas (`ClassroomPatch`). Integrated edit modal with pencil icon on classroom cards, allowing HODs to rename classrooms (renamed default "obstacles" to "Computer Science Core (CSE-C)").
+      - **Dialog & Modal Positioning Fix:** Resolved issue where voice simulation dialog was clipped at the top of the screen due to header `backdrop-blur` containing block behavior. Implemented React Portals (`createPortal(..., document.body)`) for all modals, ensuring perfect centered viewport alignment and responsive scrolling.
+      - **System Notifications Drawer:** Wired topbar bell icon with an interactive notifications dropdown displaying unread badges, event logs (email dispatches, auto-linked activities, voice recordings), and "Mark all read" controls.
+      - **Profile Dropdown & Dedicated Settings Page (`/settings`):** Added user profile popover in topbar and implemented a full `/settings` page featuring tabbed management of Profile & Department, Twilio Telephony credentials (masked), speech timeout configurations (2s pause latency), and AI auto-link confidence sliders.
+      - **Complete Tailwind UI Modernization:** Replaced all legacy pre-Tailwind markup in `ClassroomHub` and `PlanGenerator` with Sanchaya's design tokens (modern card containers, dashed join-code boxes with copy animation, styled input fields, and drag-and-drop file upload zones).
+
 
 
