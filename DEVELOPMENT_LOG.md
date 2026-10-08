@@ -200,6 +200,17 @@ own validation, including browser tests, production build and PostgreSQL concurr
       - **System Notifications Drawer:** Wired topbar bell icon with an interactive notifications dropdown displaying unread badges, event logs (email dispatches, auto-linked activities, voice recordings), and "Mark all read" controls.
       - **Profile Dropdown & Dedicated Settings Page (`/settings`):** Added user profile popover in topbar and implemented a full `/settings` page featuring tabbed management of Profile & Department, Twilio Telephony credentials (masked), speech timeout configurations (2s pause latency), and AI auto-link confidence sliders.
       - **Complete Tailwind UI Modernization:** Replaced all legacy pre-Tailwind markup in `ClassroomHub` and `PlanGenerator` with Sanchaya's design tokens (modern card containers, dashed join-code boxes with copy animation, styled input fields, and drag-and-drop file upload zones).
-
-
-
+    - **Top Navigation Layout, Draft Persistence, Multi-Course AI Extraction & Rich Animations (Production Verified):**
+      - **Executive Top Navigation ("Upside Nav"):** Replaced the fixed 256px left sidebar with a horizontal `TopNav` component beneath the header bar. Unlocked 100% full screen width for tables, timetable previews, and classroom cards across desktops. Maintained slide-out mobile drawer on small screens.
+      - **Page-to-Page State Persistence:** Implemented automated draft persistence in `PlanGenerator` via `localStorage` (`academicflow_plan_draft_v1`). Users navigating across tabs (Dashboard, Master Plan, Classrooms) retain draft prompt instructions, course selection, faculty mappings, and generated preview activities with 1-click draft restoration and clear controls.
+      - **Multi-Course Extraction & Teacher Assignment:**
+        - Added `"ALL Courses (Auto-Extract All Subjects from Timetable / Prompt)"` course scope with automated Claude Haiku multi-subject syllabus generation.
+        - Added "Teacher Assignment & Subject Handlers" input allowing HODs to map faculty to specific courses (e.g., `DS: Dr. Ramanathan, DBMS: Prof. Anitha, OS: Dr. Karthik`).
+        - Enhanced preview table with inline-editable `Course` and `Teacher / Handler` columns for every generated session.
+      - **Rich Micro-Interactions & Animated Components:**
+        - Implemented reusable `Skeleton` component (`frontend/components/ui/skeleton.tsx`) with pulse wave animation for asynchronous loading states in `ClassroomHub`.
+        - Added multi-step animated generation progress banner in `PlanGenerator` illustrating OCR ingestion, Claude Haiku Vision parsing, faculty handler mapping, and Bloom's taxonomy calibration.
+        - Added unread ping badge animation on the notification bell and slide-in zoom dropdown transitions in `Header`.
+        - Added active scale micro-interactions (`active:scale-[0.98]`) across primary action buttons.
+        - Polished `/login` page with animated entrance, interactive hover lifts on feature cards, and instant 1-click HOD/Faculty account pills.
+      - **Production Verification:** Built cleanly with 0 TypeScript errors across all 16 Next.js routes, deployed via Docker Compose to AWS EC2, and verified live on `https://academicflowz.duckdns.org`.
