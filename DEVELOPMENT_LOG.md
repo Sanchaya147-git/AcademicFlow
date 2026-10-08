@@ -189,5 +189,10 @@ own validation, including browser tests, production build and PostgreSQL concurr
     - Merged Sanchaya's frontend redesign (`0ff6d21`) with modern modular route groups:
       - Split monolithic `workspace.tsx` into Next.js App Router subroutes: `(auth)/login`, `(dashboard)/dashboard`, `(dashboard)/classrooms`, `(dashboard)/plan-generator`, `(dashboard)/activities`, `(dashboard)/reports`, `(dashboard)/review`, `(dashboard)/schedule`, `(dashboard)/analytics`, `(dashboard)/audit`, `(dashboard)/unmatched`.
       - Integrated split-screen campus visual login, responsive mobile-drawer sidebar, and action header with Master Excel export, HOD Twilio email center, and voice simulator dialog.
-      - Passed local production Next.js build with 0 TypeScript and 0 compilation errors across all 15 routes.
+      - Passed local and EC2 production Next.js builds with 0 TypeScript and 0 compilation errors across all 15 routes.
+    - Verified Live EC2 Deployment (`https://academicflowz.duckdns.org`):
+      - Backend and Frontend containers rebuilt and running healthy with Docker Compose.
+      - Hardened Twilio voice caller ID parsing by automatically stripping any `whatsapp:` prefix for voice calls.
+      - Verified live authentication, Master Excel export (`GET /api/excel/master`), simulated email dispatch, and live Twilio Comms email dispatch to `sanchaya06@gmail.com` with 202 Accepted.
+
 
