@@ -555,7 +555,7 @@ async def trigger_outbound_call(request: Request, to_phone: str = Query(None, de
 
     data = urllib.parse.urlencode({
         "To": target_phone,
-        "From": settings.TWILIO_WHATSAPP_NUMBER,
+        "From": settings.TWILIO_WHATSAPP_NUMBER.replace("whatsapp:", ""),
         "Url": callback_url,
     }).encode("utf-8")
 
