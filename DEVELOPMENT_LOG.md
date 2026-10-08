@@ -240,7 +240,14 @@ own validation, including browser tests, production build and PostgreSQL concurr
         - Formatted the Progress bar column as a flex row with dedicated width (`min-w-[130px]`) and tabular percentage indicator.
       - **Fixed Top Navigation Bar Artifact Collision:**
         - Removed the trailing purple pulse dot from the `AI Plan Prompter` tab in `TopNav` (`frontend/components/layout/top-nav.tsx`), eliminating the visual artifact jammed against the adjacent `Master Plan` active tab pill.
-      - **Enhanced Status Badges:**
-        - Updated `StatusBadge` (`frontend/components/status-badge.tsx`) with comprehensive Tailwind backgrounds, borders, text colors, and shadows across all 15 status states to prevent unstyled plain text rendering.
+      - **Verification:** Compiled cleanly with 0 TypeScript errors across all 16 routes, pushed to `feature/total-vision-classrooms-ocr-excel`, and deployed to EC2 production.
+    - **Executive 2-Tier Top Navigation Bar Redesign (Production Verified):**
+      - **Tier 1 (Header Bar) Optimization:**
+        - Expanded global search input into a flexible, unclipped container (`max-w-xl`) with `⌘K` shortcut badge, completely eliminating the clipped placeholder bug.
+        - Consolidated the 4 separate simulation/export buttons into a unified `Actions & Comms ▾` dropdown menu (`Master Excel`, `Email Plan to HOD`, `Simulate Email Dispatch`, `Simulate Voice Call`) with semantic color accents and descriptions.
+      - **Tier 2 (Top Navigation Bar) Modernization:**
+        - Refined all 11 navigation tab pills with cohesive padding (`px-3 py-1.5`) and smooth icon micro-lift (`scale-105`) transitions.
+        - Replaced harsh pill scale-jumping with smooth, high-contrast active states.
+        - Integrated a subtle `AI` pill badge on `AI Plan Prompter`.
       - **Verification:** Compiled cleanly with 0 TypeScript errors across all 16 routes, pushed to `feature/total-vision-classrooms-ocr-excel`, and deployed to EC2 production.
 

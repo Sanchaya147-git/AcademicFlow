@@ -40,7 +40,7 @@ export function TopNav({ className }: { className?: string }) {
       )}
     >
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-1.5 overflow-x-auto py-2 scrollbar-none">
+        <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto py-1.5 scrollbar-none">
           {navLinks.map((link) => {
             if (link.roleRestricted && !isReviewer) return null;
             const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -49,21 +49,32 @@ export function TopNav({ className }: { className?: string }) {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 shrink-0 select-none',
+                  'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 shrink-0 select-none group',
                   isActive
-                    ? 'bg-primary text-white shadow-xs font-bold scale-[1.01]'
-                    : 'text-text-muted hover:text-text-primary hover:bg-slate-100/80 active:scale-95'
+                    ? 'bg-primary text-white shadow-xs font-bold'
+                    : 'text-text-muted hover:text-text-primary hover:bg-slate-100/90 active:scale-95',
+                  link.isAi && !isActive && 'text-violet-700/80 hover:text-violet-700 hover:bg-violet-50/70'
                 )}
               >
                 <link.icon
                   size={15}
                   className={cn(
-                    'shrink-0 transition-transform duration-150',
+                    'shrink-0 transition-transform duration-150 group-hover:scale-105',
                     isActive ? 'text-white' : 'text-slate-400 group-hover:text-text-primary',
-                    link.isAi && !isActive && 'text-violet-500'
+                    link.isAi && !isActive && 'text-violet-600 group-hover:text-violet-700'
                   )}
                 />
                 <span>{link.label}</span>
+                {link.isAi && (
+                  <span
+                    className={cn(
+                      'text-[9px] font-bold px-1.5 py-0.2 rounded-md uppercase tracking-wider transition-colors',
+                      isActive ? 'bg-white/20 text-white' : 'bg-violet-100 text-violet-700'
+                    )}
+                  >
+                    AI
+                  </span>
+                )}
               </Link>
             );
           })}

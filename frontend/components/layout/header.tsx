@@ -5,13 +5,14 @@ import Link from 'next/link';
 import {
   Menu, Bell, LogOut, Search, Download, Mail, Sparkles,
   PhoneCall, FileText, CheckCircle2, AlertCircle, Send, Check,
-  User, Settings as SettingsIcon, ShieldCheck, ChevronRight, X, Clock, Trash2,
+  User, Settings as SettingsIcon, ShieldCheck, ChevronRight, ChevronDown, X, Clock, Trash2,
   GraduationCap
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
 import { API_BASE, post } from '@/lib/api';
 import { LogoMark, Wordmark } from '@/components/logo';
+import { cn } from '@/lib/utils';
 
 type NotificationItem = {
   id: string;
@@ -72,6 +73,10 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
+  // Quick Actions Dropdown State
+  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
   // Close popovers on click outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -80,6 +85,9 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
       }
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setShowProfileMenu(false);
+      }
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) {
+        setShowActionsDropdown(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -238,9 +246,9 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   }
 
   return (
-    <header className="h-16 bg-white/90 backdrop-blur-md border-b border-border-subtle flex items-center justify-between px-4 lg:px-8 shrink-0 sticky top-0 z-30 shadow-2xs">
-      {/* Left: Brand Logo + Mobile menu toggle + search */}
-      <div className="flex items-center gap-3.5 flex-1 max-w-md">
+    <header className="h-16 bg-white/95 backdrop-blur-md border-b border-border-subtle flex items-center justify-between px-4 lg:px-8 shrink-0 sticky top-0 z-30 shadow-2xs">
+      {/* Left: Brand Logo + Mobile menu toggle */}
+      <div className="flex items-center gap-3.5 shrink-0">
         <button
           onClick={onMenuClick}
           className="lg:hidden p-2 -ml-2 text-text-muted hover:text-text-primary rounded-xl hover:bg-slate-100 transition-colors"
@@ -262,63 +270,122 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
             </div>
           </div>
         </Link>
+      </div>
 
-        <div className="hidden md:flex items-center gap-2 bg-slate-50/80 border border-border-subtle rounded-xl px-3 py-1.5 flex-1 focus-within:bg-white focus-within:border-primary/50 transition-colors">
-          <Search size={14} className="text-text-muted shrink-0" />
-          <input
-            type="text"
-            placeholder="Search syllabus, courses, faculty…"
-            className="bg-transparent text-xs text-text-primary placeholder:text-text-muted focus:outline-none w-full"
-          />
+      {/* Center: Full flexible Global Search Bar */}
+      <div className="hidden md:flex items-center gap-2.5 bg-slate-50 hover:bg-slate-100/80 focus-within:bg-white border border-border-subtle focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 rounded-xl px-3.5 py-1.5 flex-1 max-w-xl mx-4 transition-all shadow-2xs">
+        <Search size={15} className="text-text-muted shrink-0" />
+        <input
+          type="text"
+          placeholder="Search syllabus, courses, faculty, activities…"
+          className="bg-transparent text-xs text-text-primary placeholder:text-text-muted focus:outline-none w-full"
+        />
+        <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-white border border-border-subtle rounded-md shadow-2xs">
+          ⌘K
+        </kbd>
+      </div>
+
+      {/* Right: Quick Actions Dropdown + Notifications + Profile Popover */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Quick Actions Dropdown */}
+        <div className="relative" ref={actionsRef}>
+          <button
+            onClick={() => setShowActionsDropdown(!showActionsDropdown)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border-subtle bg-white text-xs font-semibold text-text-primary hover:bg-slate-50 active:scale-95 transition-all shadow-2xs cursor-pointer"
+            title="Master Plan export, email dispatches, and voice simulation"
+          >
+            <Sparkles size={14} className="text-primary" />
+            <span className="hidden sm:inline">Actions & Comms</span>
+            <ChevronDown size={13} className={cn("text-slate-400 transition-transform duration-150", showActionsDropdown && "rotate-180")} />
+          </button>
+
+          {showActionsDropdown && (
+            <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-border-subtle p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                Workbook & Communication
+              </div>
+
+              <a
+                href={`${API_BASE}/api/excel/master`}
+                download="master_academic_plan.xlsx"
+                onClick={() => setShowActionsDropdown(false)}
+                className="flex items-center gap-3 px-3 py-2 text-xs font-medium text-text-primary hover:bg-slate-50 rounded-xl transition-colors group"
+              >
+                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60 group-hover:bg-emerald-100 transition-colors">
+                  <Download size={15} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-text-primary">Master Excel (.xlsx)</span>
+                  <span className="text-[10px] text-text-muted">Download live institutional workbook</span>
+                </div>
+              </a>
+
+              {isHod && (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowActionsDropdown(false);
+                      setShowEmailModal(true);
+                      setEmailMode('live');
+                      setEmailResult(null);
+                    }}
+                    className="w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-medium text-text-primary hover:bg-slate-50 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200/60 group-hover:bg-blue-100 transition-colors">
+                      <Mail size={15} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-text-primary">Email Plan to HOD</span>
+                      <span className="text-[10px] text-text-muted">Dispatch plan via Twilio Comms</span>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowActionsDropdown(false);
+                      setShowEmailModal(true);
+                      setEmailMode('simulate');
+                      handleSendEmail('simulate');
+                    }}
+                    className="w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-medium text-text-primary hover:bg-violet-50/60 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <div className="p-1.5 rounded-lg bg-violet-50 text-violet-600 border border-violet-200/60 group-hover:bg-violet-100 transition-colors">
+                      <Sparkles size={15} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-violet-900">Simulate Email Dispatch</span>
+                      <span className="text-[10px] text-violet-600/70">Preview simulated HOD payload</span>
+                    </div>
+                  </button>
+                </>
+              )}
+
+              <div className="my-1.5 border-t border-border-subtle" />
+
+              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                AI Voice Telephony
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowActionsDropdown(false);
+                  setShowCallModal(true);
+                  startNewConversation();
+                  setCallResult(null);
+                }}
+                className="w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-medium text-text-primary hover:bg-amber-50/70 rounded-xl transition-colors cursor-pointer group"
+              >
+                <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-200/60 group-hover:bg-amber-100 transition-colors">
+                  <PhoneCall size={15} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-amber-950">Simulate Voice Call</span>
+                  <span className="text-[10px] text-amber-700/70">AI interactive dialogue / Twilio call</span>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* Center/Actions: Master Excel, Email Plan, Simulate Call */}
-      <div className="flex items-center gap-2">
-        <a
-          href={`${API_BASE}/api/excel/master`}
-          download="master_academic_plan.xlsx"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-subtle bg-white text-xs font-semibold text-text-primary hover:bg-slate-50 active:scale-[0.97] transition-all shadow-2xs"
-          title="Download live Master Academic Plan workbook"
-        >
-          <Download size={14} className="text-emerald-600" />
-          <span className="hidden sm:inline">Master Excel</span>
-        </a>
-
-        {isHod && (
-          <>
-            <button
-              onClick={() => { setShowEmailModal(true); setEmailMode('live'); setEmailResult(null); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-subtle bg-white text-xs font-semibold text-text-primary hover:bg-slate-50 active:scale-[0.97] transition-all shadow-2xs cursor-pointer"
-              title="Dispatch plan to HOD mailbox via Twilio"
-            >
-              <Mail size={14} className="text-blue-600" />
-              <span className="hidden md:inline">Email Plan</span>
-            </button>
-
-            <button
-              onClick={() => { setShowEmailModal(true); setEmailMode('simulate'); handleSendEmail('simulate'); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-200 bg-violet-50 text-xs font-semibold text-violet-700 hover:bg-violet-100 active:scale-[0.97] transition-all shadow-2xs cursor-pointer"
-              title="Simulate email dispatch with Excel attachment"
-            >
-              <Sparkles size={14} className="text-violet-600" />
-              <span className="hidden lg:inline">Simulate Mail</span>
-            </button>
-          </>
-        )}
-
-        <button
-          onClick={() => { setShowCallModal(true); startNewConversation(); setCallResult(null); }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-xs font-semibold text-amber-800 hover:bg-amber-100 active:scale-[0.97] transition-all shadow-2xs cursor-pointer"
-          title="Simulate Twilio phone call or interactive browser voice dialog"
-        >
-          <PhoneCall size={14} className="text-amber-600" />
-          <span className="hidden sm:inline">Simulate Call</span>
-        </button>
-      </div>
-
-      {/* Right: notifications + avatar + profile menu + logout */}
-      <div className="flex items-center gap-2 ml-3">
         {/* Notifications Popover */}
         <div className="relative" ref={notifRef}>
           <button
