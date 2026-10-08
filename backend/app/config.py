@@ -32,10 +32,10 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_NUMBER_ID: str = ""
     WHATSAPP_ACCESS_TOKEN: str = ""
     WHATSAPP_VERIFY_TOKEN: str = "academicflow_whatsapp_verify_2026"
-    TEACHER_PHONE: str = "916380221196"
+    TEACHER_PHONE: str = "919952840506"
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
-    TWILIO_WHATSAPP_NUMBER: str = "+14155238886"
+    TWILIO_WHATSAPP_NUMBER: str = "+17372508034"
     TUNNEL_URL: str = "https://broadway-shell-subcommittee-sitting.trycloudflare.com"
 
     @model_validator(mode="after")

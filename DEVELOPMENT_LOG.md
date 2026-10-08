@@ -179,8 +179,15 @@ own validation, including browser tests, production build and PostgreSQL concurr
     - Tuned voice call pause latency: reduced `speechTimeout` to 2 seconds and `timeout` to 10 seconds across all TwiML `<Gather>` blocks for rapid conversational turnaround.
     - Preserved multi-turn voice context: assistant turn history formatted as JSON in `session["turns"]` to preserve Claude's structured response pattern, with intelligent fallback parsing to ensure follow-up clarifying questions are always spoken to the caller.
     - Implemented HOD-exclusive Master Academic Plan email dispatch via Twilio Comms Email API (`POST /api/email/send-master-plan`):
-      - Live mode: Dispatches approved email payload directly to `roxyzinc07@gmail.com` via `https://comms.twilio.com/v1/Emails` with Basic Auth, tracking live Twilio operation ID.
+      - Live mode: Dispatches approved email payload directly to `sanchaya06@gmail.com` via `https://comms.twilio.com/v1/Emails` with Basic Auth, tracking live Twilio operation ID.
       - Simulate mode: Generates full rich email dispatch with `master_academic_plan.xlsx` attachment metadata and database audit logging.
       - Strict Role-Based Access Control: Restricted to HOD and ADMIN roles; faculty/staff calls rejected with 403 Forbidden.
       - Frontend HOD Email Center: Added "Email Plan (Twilio)" and "Simulate Mail" buttons and interactive modal in header actions, conditionally rendered only for HOD users.
+    - Updated active Twilio credentials and contact endpoints:
+      - Switched Twilio Account credentials in environment configuration and verified delivery via Comms Email API.
+      - Updated default caller/trial number to `+17372508034`, teacher mobile phone to `+919952840506`, and target HOD email to `sanchaya06@gmail.com`.
+    - Merged Sanchaya's frontend redesign (`0ff6d21`) with modern modular route groups:
+      - Split monolithic `workspace.tsx` into Next.js App Router subroutes: `(auth)/login`, `(dashboard)/dashboard`, `(dashboard)/classrooms`, `(dashboard)/plan-generator`, `(dashboard)/activities`, `(dashboard)/reports`, `(dashboard)/review`, `(dashboard)/schedule`, `(dashboard)/analytics`, `(dashboard)/audit`, `(dashboard)/unmatched`.
+      - Integrated split-screen campus visual login, responsive mobile-drawer sidebar, and action header with Master Excel export, HOD Twilio email center, and voice simulator dialog.
+      - Passed local production Next.js build with 0 TypeScript and 0 compilation errors across all 15 routes.
 

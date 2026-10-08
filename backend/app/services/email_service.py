@@ -19,7 +19,7 @@ from app.services.excel_sync import EXCEL_PATH, ensure_master_excel
 
 logger = logging.getLogger("academicflow.email")
 
-DEFAULT_RECIPIENT = "roxyzinc07@gmail.com"
+DEFAULT_RECIPIENT = "sanchaya06@gmail.com"
 TWILIO_EMAIL_URL = "https://comms.twilio.com/v1/Emails"
 
 

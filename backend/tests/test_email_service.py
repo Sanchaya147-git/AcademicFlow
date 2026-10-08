@@ -55,7 +55,7 @@ def test_email_dispatch_forbidden_for_faculty():
     resp = client.post(
         "/api/email/send-master-plan",
         headers={"Authorization": f"Bearer {faculty_token}"},
-        json={"mode": "simulate", "recipient": "roxyzinc07@gmail.com"}
+        json={"mode": "simulate", "recipient": "sanchaya06@gmail.com"}
     )
     assert resp.status_code == 403
     assert "Role is not permitted" in resp.json()["detail"]
@@ -69,13 +69,13 @@ def test_email_dispatch_simulate_for_hod():
     resp = client.post(
         "/api/email/send-master-plan",
         headers={"Authorization": f"Bearer {hod_token}"},
-        json={"mode": "simulate", "recipient": "roxyzinc07@gmail.com"}
+        json={"mode": "simulate", "recipient": "sanchaya06@gmail.com"}
     )
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "success"
     assert data["mode"] == "simulate"
-    assert data["recipient"] == "roxyzinc07@gmail.com"
+    assert data["recipient"] == "sanchaya06@gmail.com"
     assert data["excel_filename"] == "master_academic_plan.xlsx"
     assert data["operation_id"].startswith("sim_op_")
 
@@ -93,7 +93,7 @@ def test_email_dispatch_live_mocked_for_hod():
         resp = client.post(
             "/api/email/send-master-plan",
             headers={"Authorization": f"Bearer {hod_token}"},
-            json={"mode": "live", "recipient": "roxyzinc07@gmail.com"}
+            json={"mode": "live", "recipient": "sanchaya06@gmail.com"}
         )
         assert resp.status_code == 200
         data = resp.json()

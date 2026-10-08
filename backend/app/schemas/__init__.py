@@ -213,7 +213,7 @@ class ClassroomOut(DTO):
 
 
 class EmailSendRequest(DTO):
-    recipient: str = Field(default="roxyzinc07@gmail.com")
+    recipient: str = Field(default="sanchaya06@gmail.com")
     mode: str = Field(default="live", pattern="^(live|simulate)$")
 
 
